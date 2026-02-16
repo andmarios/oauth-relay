@@ -1,0 +1,21 @@
+# Binaries
+/oauth-token-relay
+/cmd/oauth-token-relay/oauth-token-relay
+
+# Data
+/data/
+*.db
+*.db-journal
+*.db-wal
+
+# Config with secrets
+config.yaml
+!config.example.yaml
+
+# Go
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp

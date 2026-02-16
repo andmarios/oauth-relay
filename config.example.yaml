@@ -1,0 +1,52 @@
+# oauth-token-relay configuration
+server:
+  address: ":8080"
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 15s
+
+storage:
+  driver: "sqlite"  # "sqlite" or "postgres"
+  sqlite:
+    path: "./data/relay.db"
+  postgres:
+    dsn: "postgres://user:pass@localhost:5432/relay?sslmode=disable"
+
+backup:
+  enabled: false
+  bucket: ""
+  prefix: "oauth-token-relay/"
+  interval: 1h
+  region: "us-east-1"
+
+jwt:
+  signing_key: "${JWT_SIGNING_KEY}"  # REQUIRED: 256-bit key, base64 encoded
+  issuer: "oauth-token-relay"
+  access_token_ttl: 1h
+  refresh_token_ttl: 720h  # 30 days
+
+providers:
+  google-corp:
+    display_name: "Google (example.com)"
+    client_id: "${GOOGLE_CORP_CLIENT_ID}"
+    client_secret: "${GOOGLE_CORP_CLIENT_SECRET}"
+    authorize_url: "https://accounts.google.com/o/oauth2/v2/auth"
+    token_url: "https://oauth2.googleapis.com/token"
+    revoke_url: "https://oauth2.googleapis.com/revoke"
+    scopes_mapping:
+      docs: "https://www.googleapis.com/auth/documents"
+      sheets: "https://www.googleapis.com/auth/spreadsheets"
+      slides: "https://www.googleapis.com/auth/presentations"
+      drive: "https://www.googleapis.com/auth/drive"
+      gmail: "https://www.googleapis.com/auth/gmail.modify"
+      calendar: "https://www.googleapis.com/auth/calendar"
+      contacts: "https://www.googleapis.com/auth/contacts"
+      directory: "https://www.googleapis.com/auth/directory.readonly"
+    extra_params:
+      access_type: "offline"
+      prompt: "consent"
+
+admin:
+  # First user with this email gets admin role automatically
+  bootstrap_admins:
+    - "admin@example.com"
