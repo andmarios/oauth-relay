@@ -54,14 +54,13 @@ type JWTConfig struct {
 }
 
 type ProviderConfig struct {
-	DisplayName   string            `yaml:"display_name"`
-	ClientID      string            `yaml:"client_id"`
-	ClientSecret  string            `yaml:"client_secret"`
-	AuthorizeURL  string            `yaml:"authorize_url"`
-	TokenURL      string            `yaml:"token_url"`
-	RevokeURL     string            `yaml:"revoke_url"`
-	ScopesMapping map[string]string `yaml:"scopes_mapping"`
-	ExtraParams   map[string]string `yaml:"extra_params"`
+	DisplayName  string            `yaml:"display_name"`
+	ClientID     string            `yaml:"client_id"`
+	ClientSecret string            `yaml:"client_secret"`
+	AuthorizeURL string            `yaml:"authorize_url"`
+	TokenURL     string            `yaml:"token_url"`
+	RevokeURL    string            `yaml:"revoke_url"`
+	ExtraParams  map[string]string `yaml:"extra_params"`
 }
 
 type AdminConfig struct {

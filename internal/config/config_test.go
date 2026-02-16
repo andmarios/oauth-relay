@@ -28,8 +28,6 @@ providers:
     client_secret: "test-secret"
     authorize_url: "https://example.com/auth"
     token_url: "https://example.com/token"
-    scopes_mapping:
-      docs: "https://example.com/scope/docs"
 `
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	os.WriteFile(path, []byte(yaml), 0644)
@@ -53,9 +51,6 @@ providers:
 	}
 	if p.DisplayName != "Test Provider" {
 		t.Errorf("display_name = %q, want Test Provider", p.DisplayName)
-	}
-	if p.ScopesMapping["docs"] != "https://example.com/scope/docs" {
-		t.Errorf("scope docs = %q", p.ScopesMapping["docs"])
 	}
 }
 

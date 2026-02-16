@@ -101,7 +101,7 @@ CREATE TABLE users (
 CREATE TABLE providers (
     id TEXT PRIMARY KEY,
     display_name TEXT NOT NULL,
-    config TEXT NOT NULL  -- JSON: authorize_url, token_url, revoke_url, scopes_mapping, extra_params
+    config TEXT NOT NULL  -- JSON: authorize_url, token_url, revoke_url, extra_params
 );
 
 -- Server refresh tokens (for the server's own OAuth 2.1 AS)
@@ -303,18 +303,12 @@ providers:
     authorize_url: "https://accounts.google.com/o/oauth2/v2/auth"
     token_url: "https://oauth2.googleapis.com/token"
     revoke_url: "https://oauth2.googleapis.com/revoke"
-    scopes_mapping:
-      docs: "https://www.googleapis.com/auth/documents"
-      sheets: "https://www.googleapis.com/auth/spreadsheets"
-      slides: "https://www.googleapis.com/auth/presentations"
-      drive: "https://www.googleapis.com/auth/drive"
-      gmail: "https://www.googleapis.com/auth/gmail.modify"
-      calendar: "https://www.googleapis.com/auth/calendar"
-      contacts: "https://www.googleapis.com/auth/contacts"
-      directory: "https://www.googleapis.com/auth/directory.readonly"
     extra_params:
       access_type: "offline"
       prompt: "consent"
+    # NOTE: No scopes_mapping — the server is scope-agnostic.
+    # Clients send full scope URLs directly (e.g., "https://www.googleapis.com/auth/documents").
+    # The server passes them through to the provider's authorize URL as-is.
 
 admin:
   # First user with this email gets admin role automatically
@@ -428,8 +422,6 @@ providers:
     client_secret: "test-secret"
     authorize_url: "https://example.com/auth"
     token_url: "https://example.com/token"
-    scopes_mapping:
-      docs: "https://example.com/scope/docs"
 `
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	os.WriteFile(path, []byte(yaml), 0644)
@@ -453,9 +445,6 @@ providers:
 	}
 	if p.DisplayName != "Test Provider" {
 		t.Errorf("display_name = %q, want Test Provider", p.DisplayName)
-	}
-	if p.ScopesMapping["docs"] != "https://example.com/scope/docs" {
-		t.Errorf("scope docs = %q", p.ScopesMapping["docs"])
 	}
 }
 
@@ -611,7 +600,7 @@ type ProviderConfig struct {
 	AuthorizeURL  string            `yaml:"authorize_url"`
 	TokenURL      string            `yaml:"token_url"`
 	RevokeURL     string            `yaml:"revoke_url"`
-	ScopesMapping map[string]string `yaml:"scopes_mapping"`
+	// NOTE: No ScopesMapping — server is scope-agnostic, clients send full scope URLs directly
 	ExtraParams   map[string]string `yaml:"extra_params"`
 }
 
@@ -1001,7 +990,7 @@ type TokenResult struct {
 }
 ```
 
-- `oauth2.go`: Generic OAuth 2.0 provider using `golang.org/x/oauth2`. Handles authorize URL construction, code exchange, refresh, revoke. Uses `scopes_mapping` to translate short names → full URLs. Passes `extra_params`.
+- `oauth2.go`: Generic OAuth 2.0 provider using `golang.org/x/oauth2`. Handles authorize URL construction, code exchange, refresh, revoke. Scopes are passed through from the client as-is (full URLs). Passes `extra_params`.
 - `registry.go`: Loads providers from config. `Get(id) Provider`, `List() []Provider`, `ResolveForUser(user) Provider` (looks up user's `provider_id`).
 
 **Tests:** Build provider from config, test AuthURL generation, mock token exchange.
