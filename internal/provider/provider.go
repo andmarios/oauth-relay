@@ -7,6 +7,7 @@ type TokenResult struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresIn    int
+	Scopes       []string
 }
 
 // Provider defines the interface for an upstream OAuth 2.0 provider.

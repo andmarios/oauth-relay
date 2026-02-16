@@ -12,6 +12,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
 // OAuth2Provider implements Provider using golang.org/x/oauth2.
 type OAuth2Provider struct {
 	id          string
@@ -58,8 +60,9 @@ func (p *OAuth2Provider) DisplayName() string { return p.displayName }
 
 // AuthURL builds the authorization URL with the given state and scopes.
 func (p *OAuth2Provider) AuthURL(state string, scopes []string) string {
-	p.config.Scopes = scopes
-	opts := []oauth2.AuthCodeOption{}
+	opts := []oauth2.AuthCodeOption{
+		oauth2.SetAuthURLParam("scope", strings.Join(scopes, " ")),
+	}
 	for k, v := range p.extraParams {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}
@@ -91,22 +94,26 @@ func (p *OAuth2Provider) Revoke(ctx context.Context, token string) error {
 		return fmt.Errorf("provider %q does not support token revocation", p.id)
 	}
 
-	data := url.Values{"token": {token}}
+	data := url.Values{
+		"token":         {token},
+		"client_id":     {p.config.ClientID},
+		"client_secret": {p.config.ClientSecret},
+	}
 	req, err := http.NewRequestWithContext(ctx, "POST", p.revokeURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return fmt.Errorf("create revoke request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("revoke request: %w", err)
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
 
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("revoke failed with status %d", resp.StatusCode)
+		return fmt.Errorf("revoke failed with status %d: %s", resp.StatusCode, body)
 	}
 	return nil
 }
@@ -117,7 +124,14 @@ func tokenResultFromOAuth2(t *oauth2.Token) *TokenResult {
 		RefreshToken: t.RefreshToken,
 	}
 	if !t.Expiry.IsZero() {
-		result.ExpiresIn = int(time.Until(t.Expiry).Seconds())
+		secs := int(time.Until(t.Expiry).Seconds())
+		if secs < 0 {
+			secs = 0
+		}
+		result.ExpiresIn = secs
+	}
+	if scope, ok := t.Extra("scope").(string); ok && scope != "" {
+		result.Scopes = strings.Split(scope, " ")
 	}
 	return result
 }

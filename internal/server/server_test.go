@@ -20,15 +20,95 @@ func TestSecurityHeaders(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	checks := map[string]string{
-		"X-Content-Type-Options": "nosniff",
-		"X-Frame-Options":       "DENY",
-		"Content-Security-Policy": "default-src 'self'",
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":          "DENY",
+		"Content-Security-Policy":   "default-src 'self'",
+		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
 	}
 	for header, want := range checks {
 		got := rr.Header().Get(header)
 		if got != want {
 			t.Errorf("%s = %q, want %q", header, got, want)
 		}
+	}
+}
+
+func TestRequestLogging(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	handler := requestLogging(inner)
+	req := httptest.NewRequest("GET", "/test", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rr.Code)
+	}
+}
+
+func TestCORSAllowedOrigin(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := cors([]string{"http://localhost:3000"}, inner)
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+		t.Error("missing CORS allow-origin header")
+	}
+}
+
+func TestCORSBlockedOrigin(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := cors([]string{"http://localhost:3000"}, inner)
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "http://evil.com")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Error("CORS header should not be set for blocked origin")
+	}
+}
+
+func TestCORSPreflight(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := cors([]string{"http://localhost:3000"}, inner)
+	req := httptest.NewRequest("OPTIONS", "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("preflight status = %d, want 204", rr.Code)
+	}
+}
+
+func TestCORSDisabledWhenEmpty(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := cors(nil, inner)
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Error("CORS should be disabled when no origins configured")
 	}
 }
 
@@ -53,11 +133,10 @@ func TestServerStartAndShutdown(t *testing.T) {
 		errCh <- srv.Start(ctx)
 	}()
 
-	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
+	// Addr() blocks until server is ready — no time.Sleep needed
+	addr := srv.Addr()
 
-	// Test that /health responds
-	resp, err := http.Get("http://" + srv.Addr() + "/health")
+	resp, err := http.Get("http://" + addr + "/health")
 	if err != nil {
 		t.Fatalf("GET /health: %v", err)
 	}
@@ -66,9 +145,11 @@ func TestServerStartAndShutdown(t *testing.T) {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
 	}
 
-	// Verify security headers
 	if resp.Header.Get("X-Content-Type-Options") != "nosniff" {
-		t.Error("missing security headers")
+		t.Error("missing X-Content-Type-Options")
+	}
+	if resp.Header.Get("Strict-Transport-Security") == "" {
+		t.Error("missing Strict-Transport-Security")
 	}
 
 	// Trigger graceful shutdown
