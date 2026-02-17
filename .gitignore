@@ -11,6 +11,7 @@
 # Config with secrets
 config.yaml
 !config.example.yaml
+.env*
 
 # Go
 vendor/

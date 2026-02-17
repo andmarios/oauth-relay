@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
@@ -58,6 +59,9 @@ func main() {
 	if err := st.Migrate(ctx); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
+
+	// Sync providers from config → DB
+	syncProviders(ctx, st, cfg.Providers)
 
 	// Bootstrap admin users
 	bootstrapAdmins(ctx, st, cfg.Admin.BootstrapAdmins)
@@ -179,6 +183,25 @@ func bootstrapAdmins(ctx context.Context, st store.Store, emails []string) {
 			} else {
 				log.Printf("bootstrapped admin user: %s", email)
 			}
+		}
+	}
+}
+
+func syncProviders(ctx context.Context, st store.Store, providers map[string]config.ProviderConfig) {
+	for id, p := range providers {
+		cfgJSON, _ := json.Marshal(map[string]any{
+			"authorize_url": p.AuthorizeURL,
+			"token_url":     p.TokenURL,
+			"revoke_url":    p.RevokeURL,
+		})
+		if err := st.UpsertProvider(ctx, &store.Provider{
+			ID:          id,
+			DisplayName: p.DisplayName,
+			Config:      cfgJSON,
+		}); err != nil {
+			log.Printf("sync provider %s: %v", id, err)
+		} else {
+			log.Printf("synced provider: %s (%s)", id, p.DisplayName)
 		}
 	}
 }
