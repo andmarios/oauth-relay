@@ -17,6 +17,7 @@ import (
 	"github.com/piper/oauth-token-relay/internal/auth"
 	"github.com/piper/oauth-token-relay/internal/config"
 	"github.com/piper/oauth-token-relay/internal/handler"
+	"github.com/piper/oauth-token-relay/internal/idp"
 	"github.com/piper/oauth-token-relay/internal/provider"
 	"github.com/piper/oauth-token-relay/internal/server"
 	"github.com/piper/oauth-token-relay/internal/store"
@@ -76,6 +77,7 @@ func main() {
 
 	baseURL := "http://localhost" + cfg.Server.Address
 	registry := provider.NewRegistry(cfg.Providers, baseURL)
+	idpRegistry := idp.NewRegistry(cfg.IdentityProviders, baseURL+"/sso/callback")
 
 	oauthServer := auth.NewOAuth21Server(auth.OAuth21Config{
 		Issuer:    cfg.JWT.Issuer,
@@ -106,14 +108,23 @@ func main() {
 		log.Fatalf("admin session manager: %v", err)
 	}
 
+	// Session manager for SSO state cookie (stores state nonce during OAuth redirect)
+	ssoSessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), false,
+		auth.WithCookieName("_otr_sso"),
+		auth.WithPath("/"),
+		auth.WithTTL(10*time.Minute),
+	)
+	if err != nil {
+		log.Fatalf("sso session manager: %v", err)
+	}
+
 	// Build handlers
 	healthH := handler.NewHealthHandler(registry)
-	loginH := handler.NewLoginHandler(st, sessionMgr)
+	ssoH := handler.NewSSOHandler(st, sessionMgr, adminSessionMgr, ssoSessionMgr, idpRegistry, cfg.Admin.BootstrapAdmins)
 	oauthH := handler.NewOAuthHandler(oauthServer, jwtSvc, st, sessionMgr, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL)
 	relayH := handler.NewRelayHandler(st, registry)
 	adminAPIH := handler.NewAdminHandler(st)
 	adminUIH := admin.NewUIHandler(st, registry)
-	adminLoginH := handler.NewAdminLoginHandler(st, adminSessionMgr)
 
 	// Wire routes
 	mux := http.NewServeMux()
@@ -121,9 +132,11 @@ func main() {
 	// Health (no auth)
 	mux.Handle("GET /health", healthH)
 
-	// Login (no auth — this is the authentication entry point)
-	mux.HandleFunc("GET /oauth/login", loginH.HandleLoginPage)
-	mux.HandleFunc("POST /oauth/login", loginH.HandleLoginSubmit)
+	// SSO login (replaces email-only login — users authenticate via identity provider)
+	mux.HandleFunc("GET /oauth/login", ssoH.HandleLoginPage)
+	mux.HandleFunc("GET /admin/login", ssoH.HandleLoginPage)
+	mux.HandleFunc("GET /sso/start/{provider}", ssoH.HandleSSOStart)
+	mux.HandleFunc("GET /sso/callback", ssoH.HandleSSOCallback)
 
 	// OAuth 2.1 AS endpoints (no server auth — these are the auth endpoints)
 	mux.HandleFunc("GET /oauth/authorize", oauthH.HandleAuthorize)
@@ -137,10 +150,6 @@ func main() {
 	mux.Handle("POST /auth/tokens/complete", authMW(http.HandlerFunc(relayH.HandleComplete)))
 	mux.Handle("POST /auth/tokens/refresh", authMW(http.HandlerFunc(relayH.HandleRefresh)))
 	mux.Handle("POST /auth/tokens/revoke", authMW(http.HandlerFunc(relayH.HandleRevoke)))
-
-	// Admin login (no auth required — this is the admin authentication entry point)
-	mux.HandleFunc("GET /admin/login", adminLoginH.HandleAdminLoginPage)
-	mux.HandleFunc("POST /admin/login", adminLoginH.HandleAdminLoginSubmit)
 
 	// Admin API (requires admin — Bearer-only for CLI clients)
 	adminMW := auth.RequireAdmin(jwtSvc)

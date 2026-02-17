@@ -37,6 +37,28 @@ providers:
       access_type: "offline"
       prompt: "consent"
 
+# Identity providers for SSO login (separate from relay providers)
+# At least one is required — users authenticate via SSO to prove identity
+identity_providers:
+  google:
+    display_name: "Google"
+    client_id: "${GOOGLE_IDP_CLIENT_ID}"
+    client_secret: "${GOOGLE_IDP_CLIENT_SECRET}"
+    authorize_url: "https://accounts.google.com/o/oauth2/v2/auth"
+    token_url: "https://oauth2.googleapis.com/token"
+    userinfo_url: "https://www.googleapis.com/oauth2/v3/userinfo"
+    scopes: ["openid", "email", "profile"]
+    email_field: "email"
+  # github:
+  #   display_name: "GitHub"
+  #   client_id: "${GITHUB_IDP_CLIENT_ID}"
+  #   client_secret: "${GITHUB_IDP_CLIENT_SECRET}"
+  #   authorize_url: "https://github.com/login/oauth/authorize"
+  #   token_url: "https://github.com/login/oauth/access_token"
+  #   userinfo_url: "https://api.github.com/user/emails"
+  #   scopes: ["user:email"]
+  #   email_field: "email"
+
 admin:
   # First user with this email gets admin role automatically
   bootstrap_admins:

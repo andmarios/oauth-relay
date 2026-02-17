@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig              `yaml:"server"`
-	Storage   StorageConfig             `yaml:"storage"`
-	Backup    BackupConfig              `yaml:"backup"`
-	JWT       JWTConfig                 `yaml:"jwt"`
-	Providers map[string]ProviderConfig `yaml:"providers"`
-	Admin     AdminConfig               `yaml:"admin"`
+	Server            ServerConfig              `yaml:"server"`
+	Storage           StorageConfig             `yaml:"storage"`
+	Backup            BackupConfig              `yaml:"backup"`
+	JWT               JWTConfig                 `yaml:"jwt"`
+	Providers         map[string]ProviderConfig `yaml:"providers"`
+	IdentityProviders map[string]IDPConfig      `yaml:"identity_providers"`
+	Admin             AdminConfig               `yaml:"admin"`
 }
 
 type ServerConfig struct {
@@ -61,6 +62,17 @@ type ProviderConfig struct {
 	TokenURL     string            `yaml:"token_url"`
 	RevokeURL    string            `yaml:"revoke_url"`
 	ExtraParams  map[string]string `yaml:"extra_params"`
+}
+
+type IDPConfig struct {
+	DisplayName  string   `yaml:"display_name"`
+	ClientID     string   `yaml:"client_id"`
+	ClientSecret string   `yaml:"client_secret"`
+	AuthorizeURL string   `yaml:"authorize_url"`
+	TokenURL     string   `yaml:"token_url"`
+	UserInfoURL  string   `yaml:"userinfo_url"`
+	Scopes       []string `yaml:"scopes"`
+	EmailField   string   `yaml:"email_field"`
 }
 
 type AdminConfig struct {
@@ -125,6 +137,26 @@ func (c *Config) Validate() error {
 	}
 	if c.Storage.Driver == "postgres" && c.Storage.Postgres.DSN == "" {
 		return fmt.Errorf("storage.postgres.dsn is required when driver is postgres")
+	}
+	if len(c.IdentityProviders) == 0 {
+		return fmt.Errorf("identity_providers: at least one identity provider is required")
+	}
+	for id, idp := range c.IdentityProviders {
+		if idp.ClientID == "" {
+			return fmt.Errorf("identity_providers.%s.client_id is required", id)
+		}
+		if idp.ClientSecret == "" {
+			return fmt.Errorf("identity_providers.%s.client_secret is required", id)
+		}
+		if idp.AuthorizeURL == "" {
+			return fmt.Errorf("identity_providers.%s.authorize_url is required", id)
+		}
+		if idp.TokenURL == "" {
+			return fmt.Errorf("identity_providers.%s.token_url is required", id)
+		}
+		if idp.UserInfoURL == "" {
+			return fmt.Errorf("identity_providers.%s.userinfo_url is required", id)
+		}
 	}
 	return nil
 }
