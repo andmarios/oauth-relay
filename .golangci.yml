@@ -1,0 +1,47 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gocritic
+    - gosimple
+    - typecheck
+    - bodyclose
+    - durationcheck
+    - errname
+    - errorlint
+    - exportloopref
+    - makezero
+    - nilerr
+    - prealloc
+    - predeclared
+    - unconvert
+    - unparam
+    - wastedassign
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+
+issues:
+  exclude-dirs:
+    - internal/admin/ui/templates  # generated templ code
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocritic
+        - unparam

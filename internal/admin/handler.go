@@ -2,6 +2,7 @@ package admin
 
 import (
 	"io/fs"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -26,7 +27,10 @@ func NewUIHandler(st store.Store, reg *provider.Registry) *UIHandler {
 	h := &UIHandler{store: st, registry: reg, mux: http.NewServeMux()}
 
 	// Static assets
-	staticFS, _ := fs.Sub(ui.Static, "static")
+	staticFS, err := fs.Sub(ui.Static, "static")
+	if err != nil {
+		log.Fatalf("embed static assets: %v", err)
+	}
 	h.mux.Handle("GET /admin/static/", http.StripPrefix("/admin/static/", http.FileServer(http.FS(staticFS))))
 
 	// Pages
@@ -40,14 +44,24 @@ func NewUIHandler(st store.Store, reg *provider.Registry) *UIHandler {
 }
 
 func (h *UIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Relax CSP for admin UI pages to allow htmx event handling
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'")
 	h.mux.ServeHTTP(w, r)
 }
 
 func (h *UIHandler) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	_, userCount, _ := h.store.ListUsers(ctx, 1, 0)
-	stats, _ := h.store.GetUsageStats(ctx, time.Now().AddDate(0, 0, -1))
+	_, userCount, err := h.store.ListUsers(ctx, 1, 0)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	stats, err := h.store.GetUsageStats(ctx, time.Now().AddDate(0, 0, -1))
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 
 	data := templates.DashboardData{
 		UserCount:  userCount,
@@ -60,7 +74,11 @@ func (h *UIHandler) handleDashboard(w http.ResponseWriter, r *http.Request) {
 func (h *UIHandler) handleUsers(w http.ResponseWriter, r *http.Request) {
 	limit, offset := parsePagination(r)
 
-	users, total, _ := h.store.ListUsers(r.Context(), limit, offset)
+	users, total, err := h.store.ListUsers(r.Context(), limit, offset)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 	data := templates.UsersData{
 		Users:  users,
 		Total:  total,
@@ -80,10 +98,14 @@ func (h *UIHandler) handleUserDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	audit, _, _ := h.store.ListAuditEntries(ctx, store.AuditFilter{
+	audit, _, err := h.store.ListAuditEntries(ctx, store.AuditFilter{
 		UserID: id,
 		Limit:  50,
 	})
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 
 	data := templates.UserDetailData{
 		User:  user,
@@ -103,7 +125,11 @@ func (h *UIHandler) handleAudit(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 	}
 
-	entries, total, _ := h.store.ListAuditEntries(r.Context(), filter)
+	entries, total, err := h.store.ListAuditEntries(r.Context(), filter)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 	data := templates.AuditData{
 		Entries: entries,
 		Total:   total,
@@ -115,7 +141,11 @@ func (h *UIHandler) handleAudit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UIHandler) handleProviders(w http.ResponseWriter, r *http.Request) {
-	dbProviders, _ := h.store.ListProviders(r.Context())
+	dbProviders, err := h.store.ListProviders(r.Context())
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 
 	var infos []templates.ProviderInfo
 	for _, p := range dbProviders {

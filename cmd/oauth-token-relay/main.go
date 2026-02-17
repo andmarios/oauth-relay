@@ -122,8 +122,8 @@ func main() {
 	mux.Handle("GET /admin/api/audit", adminMW(http.HandlerFunc(adminAPIH.HandleAuditLog)))
 	mux.Handle("GET /admin/api/providers", adminMW(http.HandlerFunc(adminAPIH.HandleListProviders)))
 
-	// Admin UI (served at /admin/)
-	mux.Handle("/admin/", adminUIH)
+	// Admin UI (served at /admin/ — requires admin auth)
+	mux.Handle("/admin/", adminMW(adminUIH))
 
 	// Start token cache cleanup goroutine
 	go func() {
@@ -173,8 +173,8 @@ func bootstrapAdmins(ctx context.Context, st store.Store, emails []string) {
 }
 
 func startBackup(sqliteStore *store.SQLiteStore, cfg config.BackupConfig) {
-	// S3 backup requires AWS SDK — for now, log that it's configured
-	// The actual S3Client implementation will use github.com/aws/aws-sdk-go-v2
-	log.Printf("S3 backup enabled: bucket=%s prefix=%s interval=%s", cfg.Bucket, cfg.Prefix, cfg.Interval)
-	_ = sqliteStore // Will be used when S3Client is implemented
+	// S3 backup requires an S3Client implementation (e.g., github.com/aws/aws-sdk-go-v2).
+	// BackupManager is fully implemented in internal/store/backup.go but needs an S3Client to wire.
+	log.Printf("S3 backup configured but S3 client not yet wired: bucket=%s prefix=%s interval=%s", cfg.Bucket, cfg.Prefix, cfg.Interval)
+	_ = sqliteStore
 }

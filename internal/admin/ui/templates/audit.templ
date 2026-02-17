@@ -2,6 +2,7 @@ package templates
 
 import (
 	"fmt"
+	"net/url"
 	"github.com/piper/oauth-token-relay/internal/store"
 )
 
@@ -44,7 +45,7 @@ templ Audit(data AuditData) {
 			</tbody>
 		</table>
 		if data.Offset+data.Limit < data.Total {
-			<a href={ templ.SafeURL(fmt.Sprintf("/admin/audit?offset=%d&limit=%d&user_id=%s&action=%s", data.Offset+data.Limit, data.Limit, data.Filter.UserID, data.Filter.Action)) } class="btn">Next</a>
+			<a href={ templ.SafeURL(fmt.Sprintf("/admin/audit?offset=%d&limit=%d&user_id=%s&action=%s", data.Offset+data.Limit, data.Limit, url.QueryEscape(data.Filter.UserID), url.QueryEscape(data.Filter.Action))) } class="btn">Next</a>
 		}
 	}
 }

@@ -36,9 +36,9 @@ const lockStaleTimeout = 5 * time.Minute
 
 // BackupManager handles periodic SQLite backups to S3.
 type BackupManager struct {
-	db     *SQLiteStore
-	s3     S3Client
-	cfg    BackupConfig
+	db      *SQLiteStore
+	s3      S3Client
+	cfg     BackupConfig
 	lockKey string
 	dbKey   string
 }
@@ -111,6 +111,9 @@ func (m *BackupManager) RunOnce(ctx context.Context) error {
 	return nil
 }
 
+// acquireLock uses a best-effort distributed lock via S3. This is NOT strictly
+// safe against concurrent writes — two instances may both take a stale lock.
+// In the worst case, two backups run simultaneously, which is harmless.
 func (m *BackupManager) acquireLock(ctx context.Context) error {
 	rc, err := m.s3.Download(ctx, m.cfg.Bucket, m.lockKey)
 	if err != nil {
@@ -168,6 +171,9 @@ func copyFile(src, dst string) error {
 	defer out.Close()
 
 	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	if err := out.Sync(); err != nil {
 		return err
 	}
 	return out.Close()
