@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/piper/oauth-token-relay/internal/httputil"
@@ -52,6 +53,42 @@ func RequireAdmin(jwt *JWTService) func(http.Handler) http.Handler {
 			}
 			next.ServeHTTP(w, r)
 		}))
+	}
+}
+
+// RequireAdminUI returns middleware for browser-accessible admin pages.
+// It accepts either a Bearer JWT (for API clients) or an admin session cookie (for browsers).
+// If neither is present, it redirects to the admin login page.
+func RequireAdminUI(jwt *JWTService, adminSession *SessionManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Try Bearer token first (API clients)
+			if token := extractBearerToken(r); token != "" {
+				claims, err := jwt.ValidateToken(token)
+				if err == nil && claims.Role == "admin" {
+					ctx := context.WithValue(r.Context(), claimsKey, claims)
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+			}
+
+			// Try admin session cookie (browsers)
+			sessionData, err := adminSession.Get(r)
+			if err == nil && sessionData.Role == "admin" {
+				claims := &Claims{
+					Email:      sessionData.Email,
+					Role:       sessionData.Role,
+					ProviderID: sessionData.ProviderID,
+				}
+				claims.Subject = sessionData.UserID
+				ctx := context.WithValue(r.Context(), claimsKey, claims)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+
+			// No valid auth — redirect to admin login
+			http.Redirect(w, r, "/admin/login?return_to="+url.QueryEscape(r.URL.RequestURI()), http.StatusFound)
+		})
 	}
 }
 

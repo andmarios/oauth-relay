@@ -96,6 +96,16 @@ func main() {
 		log.Fatalf("session manager: %v", err)
 	}
 
+	// Session manager for admin browser sessions (longer TTL, scoped to /admin/)
+	adminSessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), false,
+		auth.WithCookieName("_otr_admin"),
+		auth.WithPath("/admin/"),
+		auth.WithTTL(8*time.Hour),
+	)
+	if err != nil {
+		log.Fatalf("admin session manager: %v", err)
+	}
+
 	// Build handlers
 	healthH := handler.NewHealthHandler(registry)
 	loginH := handler.NewLoginHandler(st, sessionMgr)
@@ -103,6 +113,7 @@ func main() {
 	relayH := handler.NewRelayHandler(st, registry)
 	adminAPIH := handler.NewAdminHandler(st)
 	adminUIH := admin.NewUIHandler(st, registry)
+	adminLoginH := handler.NewAdminLoginHandler(st, adminSessionMgr)
 
 	// Wire routes
 	mux := http.NewServeMux()
@@ -127,7 +138,11 @@ func main() {
 	mux.Handle("POST /auth/tokens/refresh", authMW(http.HandlerFunc(relayH.HandleRefresh)))
 	mux.Handle("POST /auth/tokens/revoke", authMW(http.HandlerFunc(relayH.HandleRevoke)))
 
-	// Admin API (requires admin)
+	// Admin login (no auth required — this is the admin authentication entry point)
+	mux.HandleFunc("GET /admin/login", adminLoginH.HandleAdminLoginPage)
+	mux.HandleFunc("POST /admin/login", adminLoginH.HandleAdminLoginSubmit)
+
+	// Admin API (requires admin — Bearer-only for CLI clients)
 	adminMW := auth.RequireAdmin(jwtSvc)
 	mux.Handle("GET /admin/api/users", adminMW(http.HandlerFunc(adminAPIH.HandleListUsers)))
 	mux.Handle("GET /admin/api/users/{id}", adminMW(http.HandlerFunc(adminAPIH.HandleGetUser)))
@@ -137,8 +152,9 @@ func main() {
 	mux.Handle("GET /admin/api/audit", adminMW(http.HandlerFunc(adminAPIH.HandleAuditLog)))
 	mux.Handle("GET /admin/api/providers", adminMW(http.HandlerFunc(adminAPIH.HandleListProviders)))
 
-	// Admin UI (served at /admin/ — requires admin auth)
-	mux.Handle("/admin/", adminMW(adminUIH))
+	// Admin UI (served at /admin/ — accepts Bearer JWT or admin session cookie)
+	adminUIMW := auth.RequireAdminUI(jwtSvc, adminSessionMgr)
+	mux.Handle("/admin/", adminUIMW(adminUIH))
 
 	// Start token cache cleanup goroutine
 	go func() {

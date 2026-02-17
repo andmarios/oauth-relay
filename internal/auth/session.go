@@ -14,6 +14,7 @@ import (
 
 const (
 	defaultCookieName = "_otr_session"
+	defaultCookiePath = "/oauth/"
 	defaultSessionTTL = 10 * time.Minute
 )
 
@@ -27,17 +28,37 @@ type SessionData struct {
 }
 
 // SessionManager handles encrypted login sessions via HTTP cookies.
-// Sessions are AES-GCM encrypted and short-lived (10 minutes).
+// Sessions are AES-GCM encrypted and short-lived by default (10 minutes).
 type SessionManager struct {
 	aead       cipher.AEAD
 	cookieName string
+	path       string
 	ttl        time.Duration
 	secure     bool // true when served over HTTPS
 }
 
+// SessionOption configures a SessionManager.
+type SessionOption func(*SessionManager)
+
+// WithCookieName sets a custom cookie name.
+func WithCookieName(name string) SessionOption {
+	return func(m *SessionManager) { m.cookieName = name }
+}
+
+// WithPath sets the cookie path.
+func WithPath(path string) SessionOption {
+	return func(m *SessionManager) { m.path = path }
+}
+
+// WithTTL sets the session duration.
+func WithTTL(ttl time.Duration) SessionOption {
+	return func(m *SessionManager) { m.ttl = ttl }
+}
+
 // NewSessionManager creates a session manager using the given key for AES-GCM encryption.
 // The key is SHA-256 hashed to ensure exactly 32 bytes for AES-256.
-func NewSessionManager(key []byte, secure bool) (*SessionManager, error) {
+// Options can override the default cookie name, path, and TTL.
+func NewSessionManager(key []byte, secure bool, opts ...SessionOption) (*SessionManager, error) {
 	// Derive a 32-byte key via SHA-256
 	hash := sha256.Sum256(key)
 	block, err := aes.NewCipher(hash[:])
@@ -48,12 +69,17 @@ func NewSessionManager(key []byte, secure bool) (*SessionManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SessionManager{
+	m := &SessionManager{
 		aead:       aead,
 		cookieName: defaultCookieName,
+		path:       defaultCookiePath,
 		ttl:        defaultSessionTTL,
 		secure:     secure,
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m, nil
 }
 
 // Create sets an encrypted session cookie on the response.
@@ -76,7 +102,7 @@ func (m *SessionManager) Create(w http.ResponseWriter, data *SessionData) error 
 	http.SetCookie(w, &http.Cookie{
 		Name:     m.cookieName,
 		Value:    encoded,
-		Path:     "/oauth/",
+		Path:     m.path,
 		MaxAge:   int(m.ttl.Seconds()),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -127,7 +153,7 @@ func (m *SessionManager) Clear(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     m.cookieName,
 		Value:    "",
-		Path:     "/oauth/",
+		Path:     m.path,
 		MaxAge:   -1,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
