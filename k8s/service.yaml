@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth-token-relay
+  labels:
+    app: oauth-token-relay
+spec:
+  type: ClusterIP
+  selector:
+    app: oauth-token-relay
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http

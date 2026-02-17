@@ -1,0 +1,14 @@
+services:
+  oauth-token-relay:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - relay-data:/data
+      - ./config.yaml:/etc/oauth-token-relay/config.yaml:ro
+    environment:
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY:-change-me-to-a-secure-key-at-least-32-chars}
+    restart: unless-stopped
+
+volumes:
+  relay-data:

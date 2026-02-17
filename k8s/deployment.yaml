@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth-token-relay
+  labels:
+    app: oauth-token-relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth-token-relay
+  template:
+    metadata:
+      labels:
+        app: oauth-token-relay
+    spec:
+      containers:
+        - name: oauth-token-relay
+          image: oauth-token-relay:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/oauth-token-relay
+              readOnly: true
+          env:
+            - name: JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-token-relay
+                  key: jwt-signing-key
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: oauth-token-relay-data
+        - name: config
+          configMap:
+            name: oauth-token-relay-config
