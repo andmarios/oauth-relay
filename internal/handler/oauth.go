@@ -11,9 +11,9 @@ import (
 
 // OAuthHandler handles OAuth 2.1 AS endpoints (PKCE authorization code flow).
 type OAuthHandler struct {
-	oauth    *auth.OAuth21Server
-	jwt      *auth.JWTService
-	store    store.Store
+	oauth *auth.OAuth21Server
+	jwt   *auth.JWTService
+	store store.Store
 }
 
 func NewOAuthHandler(oauth *auth.OAuth21Server, jwt *auth.JWTService, st store.Store) *OAuthHandler {

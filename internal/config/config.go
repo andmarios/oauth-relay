@@ -47,7 +47,7 @@ type BackupConfig struct {
 }
 
 type JWTConfig struct {
-	SigningKey       string        `yaml:"signing_key"`
+	SigningKey      string        `yaml:"signing_key"`
 	Issuer          string        `yaml:"issuer"`
 	AccessTokenTTL  time.Duration `yaml:"access_token_ttl"`
 	RefreshTokenTTL time.Duration `yaml:"refresh_token_ttl"`

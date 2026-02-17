@@ -2,9 +2,10 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/piper/oauth-token-relay/internal/httputil"
 )
 
 type contextKey string
@@ -23,13 +24,13 @@ func RequireAuth(jwt *JWTService) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := extractBearerToken(r)
 			if token == "" {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing or invalid authorization header"})
+				httputil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing or invalid authorization header"})
 				return
 			}
 
 			claims, err := jwt.ValidateToken(token)
 			if err != nil {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+				httputil.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
 				return
 			}
 
@@ -46,7 +47,7 @@ func RequireAdmin(jwt *JWTService) func(http.Handler) http.Handler {
 		return RequireAuth(jwt)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims := ClaimsFromContext(r.Context())
 			if claims == nil || claims.Role != "admin" {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "admin access required"})
+				httputil.WriteJSON(w, http.StatusForbidden, map[string]string{"error": "admin access required"})
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -64,10 +65,4 @@ func extractBearerToken(r *http.Request) string {
 		return ""
 	}
 	return parts[1]
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
 }

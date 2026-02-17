@@ -21,7 +21,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	checks := map[string]string{
 		"X-Content-Type-Options":    "nosniff",
-		"X-Frame-Options":          "DENY",
+		"X-Frame-Options":           "DENY",
 		"Content-Security-Policy":   "default-src 'self'",
 		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
 	}

@@ -104,14 +104,14 @@ func GenerateState() (string, error) {
 // MemoryStore implements Fosite's storage interfaces in-memory.
 // Auth codes and Fosite tokens are ephemeral — the server issues its own JWTs after the flow completes.
 type MemoryStore struct {
-	mu             sync.RWMutex
-	clients        map[string]fosite.Client
-	authCodes      map[string]fosite.Requester
-	accessTokens   map[string]fosite.Requester
-	refreshTokens  map[string]storeRefreshToken
-	pkceRequests   map[string]fosite.Requester
-	invalidCodes   map[string]bool
-	jtiKnown       map[string]time.Time
+	mu            sync.RWMutex
+	clients       map[string]fosite.Client
+	authCodes     map[string]fosite.Requester
+	accessTokens  map[string]fosite.Requester
+	refreshTokens map[string]storeRefreshToken
+	pkceRequests  map[string]fosite.Requester
+	invalidCodes  map[string]bool
+	jtiKnown      map[string]time.Time
 }
 
 type storeRefreshToken struct {

@@ -95,9 +95,6 @@ func (s *SQLiteStore) Migrate(ctx context.Context) error {
 			provider_id TEXT NOT NULL,
 			state TEXT NOT NULL,
 			scopes TEXT NOT NULL,
-			access_token TEXT,
-			refresh_token TEXT,
-			expires_in INTEGER,
 			status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'completed', 'expired')),
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			completed_at TIMESTAMP
@@ -129,7 +126,7 @@ func (s *SQLiteStore) GetUser(ctx context.Context, id string) (*User, error) {
 		`SELECT id, email, name, role, provider_id, created_at, last_login FROM users WHERE id = ?`, id,
 	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.ProviderID, &u.CreatedAt, &u.LastLogin)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user %q not found", id)
+		return nil, fmt.Errorf("user %q: %w", id, ErrNotFound)
 	}
 	return u, err
 }
@@ -140,7 +137,7 @@ func (s *SQLiteStore) GetUserByEmail(ctx context.Context, email string) (*User, 
 		`SELECT id, email, name, role, provider_id, created_at, last_login FROM users WHERE email = ?`, email,
 	).Scan(&u.ID, &u.Email, &u.Name, &u.Role, &u.ProviderID, &u.CreatedAt, &u.LastLogin)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user with email %q not found", email)
+		return nil, fmt.Errorf("user email %q: %w", email, ErrNotFound)
 	}
 	return u, err
 }
@@ -208,7 +205,7 @@ func (s *SQLiteStore) GetProvider(ctx context.Context, id string) (*Provider, er
 		`SELECT id, display_name, config FROM providers WHERE id = ?`, id,
 	).Scan(&p.ID, &p.DisplayName, &p.Config)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("provider %q not found", id)
+		return nil, fmt.Errorf("provider %q: %w", id, ErrNotFound)
 	}
 	return p, err
 }
@@ -252,7 +249,7 @@ func (s *SQLiteStore) GetRefreshToken(ctx context.Context, tokenHash string) (*R
 		`SELECT token_hash, user_id, expires_at, created_at FROM server_refresh_tokens WHERE token_hash = ?`, tokenHash,
 	).Scan(&t.TokenHash, &t.UserID, &t.ExpiresAt, &t.CreatedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("refresh token not found")
+		return nil, fmt.Errorf("refresh token: %w", ErrNotFound)
 	}
 	return t, err
 }
@@ -291,7 +288,7 @@ func (s *SQLiteStore) GetAuthCode(ctx context.Context, codeHash string) (*AuthCo
 		`SELECT code_hash, user_id, code_challenge, code_challenge_method, redirect_uri, scopes, expires_at, created_at FROM auth_codes WHERE code_hash = ?`, codeHash,
 	).Scan(&c.CodeHash, &c.UserID, &c.CodeChallenge, &c.CodeChallengeMethod, &c.RedirectURI, &c.Scopes, &c.ExpiresAt, &c.CreatedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("auth code not found")
+		return nil, fmt.Errorf("auth code: %w", ErrNotFound)
 	}
 	return c, err
 }
@@ -325,7 +322,7 @@ func (s *SQLiteStore) GetDeviceCode(ctx context.Context, deviceCodeHash string) 
 		`SELECT device_code_hash, user_code, COALESCE(user_id, ''), status, scopes, expires_at, created_at FROM device_codes WHERE device_code_hash = ?`, deviceCodeHash,
 	).Scan(&d.DeviceCodeHash, &d.UserCode, &d.UserID, &d.Status, &d.Scopes, &d.ExpiresAt, &d.CreatedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("device code not found")
+		return nil, fmt.Errorf("device code: %w", ErrNotFound)
 	}
 	return d, err
 }
@@ -336,7 +333,7 @@ func (s *SQLiteStore) GetDeviceCodeByUserCode(ctx context.Context, userCode stri
 		`SELECT device_code_hash, user_code, COALESCE(user_id, ''), status, scopes, expires_at, created_at FROM device_codes WHERE user_code = ?`, userCode,
 	).Scan(&d.DeviceCodeHash, &d.UserCode, &d.UserID, &d.Status, &d.Scopes, &d.ExpiresAt, &d.CreatedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("device code with user_code %q not found", userCode)
+		return nil, fmt.Errorf("device code user_code %q: %w", userCode, ErrNotFound)
 	}
 	return d, err
 }
@@ -465,10 +462,10 @@ func (s *SQLiteStore) CreateRelaySession(ctx context.Context, sess *RelaySession
 func (s *SQLiteStore) GetRelaySession(ctx context.Context, sessionID string) (*RelaySession, error) {
 	sess := &RelaySession{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT session_id, user_id, provider_id, state, scopes, COALESCE(access_token, ''), COALESCE(refresh_token, ''), COALESCE(expires_in, 0), status, created_at, completed_at FROM relay_sessions WHERE session_id = ?`, sessionID,
-	).Scan(&sess.SessionID, &sess.UserID, &sess.ProviderID, &sess.State, &sess.Scopes, &sess.AccessToken, &sess.RefreshToken, &sess.ExpiresIn, &sess.Status, &sess.CreatedAt, &sess.CompletedAt)
+		`SELECT session_id, user_id, provider_id, state, scopes, status, created_at, completed_at FROM relay_sessions WHERE session_id = ?`, sessionID,
+	).Scan(&sess.SessionID, &sess.UserID, &sess.ProviderID, &sess.State, &sess.Scopes, &sess.Status, &sess.CreatedAt, &sess.CompletedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("relay session %q not found", sessionID)
+		return nil, fmt.Errorf("relay session %q: %w", sessionID, ErrNotFound)
 	}
 	return sess, err
 }
@@ -476,18 +473,18 @@ func (s *SQLiteStore) GetRelaySession(ctx context.Context, sessionID string) (*R
 func (s *SQLiteStore) GetRelaySessionByState(ctx context.Context, state string) (*RelaySession, error) {
 	sess := &RelaySession{}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT session_id, user_id, provider_id, state, scopes, COALESCE(access_token, ''), COALESCE(refresh_token, ''), COALESCE(expires_in, 0), status, created_at, completed_at FROM relay_sessions WHERE state = ?`, state,
-	).Scan(&sess.SessionID, &sess.UserID, &sess.ProviderID, &sess.State, &sess.Scopes, &sess.AccessToken, &sess.RefreshToken, &sess.ExpiresIn, &sess.Status, &sess.CreatedAt, &sess.CompletedAt)
+		`SELECT session_id, user_id, provider_id, state, scopes, status, created_at, completed_at FROM relay_sessions WHERE state = ?`, state,
+	).Scan(&sess.SessionID, &sess.UserID, &sess.ProviderID, &sess.State, &sess.Scopes, &sess.Status, &sess.CreatedAt, &sess.CompletedAt)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("relay session with state not found")
+		return nil, fmt.Errorf("relay session by state: %w", ErrNotFound)
 	}
 	return sess, err
 }
 
 func (s *SQLiteStore) UpdateRelaySession(ctx context.Context, sess *RelaySession) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE relay_sessions SET access_token = ?, refresh_token = ?, expires_in = ?, status = ?, completed_at = ? WHERE session_id = ?`,
-		sess.AccessToken, sess.RefreshToken, sess.ExpiresIn, sess.Status, sess.CompletedAt, sess.SessionID,
+		`UPDATE relay_sessions SET status = ?, completed_at = ? WHERE session_id = ?`,
+		sess.Status, sess.CompletedAt, sess.SessionID,
 	)
 	return err
 }

@@ -39,6 +39,15 @@ func (r *Registry) Get(id string) (Provider, error) {
 	return p, nil
 }
 
+// NewRegistryFromProviders creates a Registry from pre-built Provider instances.
+func NewRegistryFromProviders(providers map[string]Provider) *Registry {
+	r := &Registry{providers: make(map[string]Provider)}
+	for id, p := range providers {
+		r.providers[id] = p
+	}
+	return r
+}
+
 // List returns all registered provider IDs.
 func (r *Registry) List() []string {
 	ids := make([]string, 0, len(r.providers))

@@ -2,8 +2,12 @@ package store
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// ErrNotFound is returned when a requested entity does not exist.
+var ErrNotFound = errors.New("not found")
 
 // User represents an authenticated user of the relay server.
 type User struct {
@@ -75,18 +79,16 @@ type UsageEvent struct {
 }
 
 // RelaySession tracks a pending token relay flow.
+// Upstream tokens are NEVER stored here — they live in-memory only (see RelayHandler.tokenCache).
 type RelaySession struct {
-	SessionID    string
-	UserID       string
-	ProviderID   string
-	State        string // CSRF token for OAuth callback
-	Scopes       string
-	AccessToken  string // encrypted, temporary
-	RefreshToken string // encrypted, temporary
-	ExpiresIn    int
-	Status       string // pending, completed, expired
-	CreatedAt    time.Time
-	CompletedAt  *time.Time
+	SessionID   string
+	UserID      string
+	ProviderID  string
+	State       string // CSRF token for OAuth callback
+	Scopes      string
+	Status      string // pending, completed, expired
+	CreatedAt   time.Time
+	CompletedAt *time.Time
 }
 
 // AuditFilter specifies criteria for querying audit logs.

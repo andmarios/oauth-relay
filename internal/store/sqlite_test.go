@@ -394,9 +394,6 @@ func TestSQLiteRelaySessionLifecycle(t *testing.T) {
 	// Update (complete)
 	now := time.Now()
 	sess.Status = "completed"
-	sess.AccessToken = "encrypted-access"
-	sess.RefreshToken = "encrypted-refresh"
-	sess.ExpiresIn = 3600
 	sess.CompletedAt = &now
 	if err := s.UpdateRelaySession(ctx, sess); err != nil {
 		t.Fatalf("UpdateRelaySession: %v", err)
@@ -409,8 +406,8 @@ func TestSQLiteRelaySessionLifecycle(t *testing.T) {
 	if got.Status != "completed" {
 		t.Errorf("status = %q, want completed", got.Status)
 	}
-	if got.AccessToken != "encrypted-access" {
-		t.Errorf("access_token = %q", got.AccessToken)
+	if got.CompletedAt == nil {
+		t.Error("expected CompletedAt to be set")
 	}
 }
 
