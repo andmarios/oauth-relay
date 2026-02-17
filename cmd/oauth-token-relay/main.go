@@ -86,9 +86,16 @@ func main() {
 		}},
 	})
 
+	// Session manager for login cookies (uses JWT signing key as encryption key)
+	sessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), false)
+	if err != nil {
+		log.Fatalf("session manager: %v", err)
+	}
+
 	// Build handlers
 	healthH := handler.NewHealthHandler(registry)
-	oauthH := handler.NewOAuthHandler(oauthServer, jwtSvc, st)
+	loginH := handler.NewLoginHandler(st, sessionMgr)
+	oauthH := handler.NewOAuthHandler(oauthServer, jwtSvc, st, sessionMgr, cfg.JWT.AccessTokenTTL, cfg.JWT.RefreshTokenTTL)
 	relayH := handler.NewRelayHandler(st, registry)
 	adminAPIH := handler.NewAdminHandler(st)
 	adminUIH := admin.NewUIHandler(st, registry)
@@ -98,6 +105,10 @@ func main() {
 
 	// Health (no auth)
 	mux.Handle("GET /health", healthH)
+
+	// Login (no auth — this is the authentication entry point)
+	mux.HandleFunc("GET /oauth/login", loginH.HandleLoginPage)
+	mux.HandleFunc("POST /oauth/login", loginH.HandleLoginSubmit)
 
 	// OAuth 2.1 AS endpoints (no server auth — these are the auth endpoints)
 	mux.HandleFunc("GET /oauth/authorize", oauthH.HandleAuthorize)

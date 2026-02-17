@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/piper/oauth-token-relay/internal/auth"
 )
@@ -27,40 +28,54 @@ func testOAuth21Server() *auth.OAuth21Server {
 	})
 }
 
-func TestHandleAuthorizeMissingParams(t *testing.T) {
-	oauthSrv := testOAuth21Server()
-	h := NewOAuthHandler(oauthSrv, nil, nil)
+func testSessionManager(t *testing.T) *auth.SessionManager {
+	t.Helper()
+	sm, err := auth.NewSessionManager([]byte("test-session-key-for-unit-tests"), false)
+	if err != nil {
+		t.Fatalf("create session manager: %v", err)
+	}
+	return sm
+}
 
-	// Missing client_id, redirect_uri, etc.
-	req := httptest.NewRequest("GET", "/oauth/authorize", nil)
+func TestHandleAuthorizeNoSession(t *testing.T) {
+	oauthSrv := testOAuth21Server()
+	sm := testSessionManager(t)
+	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
+
+	// No login session cookie — should redirect to /oauth/login
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id=cli&response_type=code", nil)
 	rr := httptest.NewRecorder()
 	h.HandleAuthorize(rr, req)
 
-	// Fosite returns 302 redirect with error or writes error directly
-	// Without proper params, it should not return 200
-	if rr.Code == http.StatusOK {
-		t.Errorf("expected non-200 for missing params, got %d", rr.Code)
+	if rr.Code != http.StatusFound {
+		t.Errorf("expected 302 redirect, got %d", rr.Code)
+	}
+	location := rr.Header().Get("Location")
+	if !strings.HasPrefix(location, "/oauth/login") {
+		t.Errorf("expected redirect to /oauth/login, got %q", location)
 	}
 }
 
 func TestHandleTokenMissingGrantType(t *testing.T) {
 	oauthSrv := testOAuth21Server()
-	h := NewOAuthHandler(oauthSrv, nil, nil)
+	sm := testSessionManager(t)
+	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
 	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(""))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 	h.HandleToken(rr, req)
 
-	// Missing grant_type should fail
-	if rr.Code == http.StatusOK {
-		t.Errorf("expected non-200 for missing grant_type, got %d", rr.Code)
+	// Missing grant_type should return 400 unsupported_grant_type
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing grant_type, got %d", rr.Code)
 	}
 }
 
 func TestHandleTokenInvalidCode(t *testing.T) {
 	oauthSrv := testOAuth21Server()
-	h := NewOAuthHandler(oauthSrv, nil, nil)
+	sm := testSessionManager(t)
+	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
 	form := url.Values{
 		"grant_type":    {"authorization_code"},
@@ -79,19 +94,37 @@ func TestHandleTokenInvalidCode(t *testing.T) {
 	}
 }
 
-func TestHandleRevoke(t *testing.T) {
+func TestHandleTokenRefreshMissing(t *testing.T) {
 	oauthSrv := testOAuth21Server()
-	h := NewOAuthHandler(oauthSrv, nil, nil)
+	sm := testSessionManager(t)
+	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
-	form := url.Values{"token": {"some-token"}}
-	req := httptest.NewRequest("POST", "/oauth/revoke", strings.NewReader(form.Encode()))
+	form := url.Values{
+		"grant_type": {"refresh_token"},
+	}
+	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	h.HandleToken(rr, req)
+
+	// Missing refresh_token param should return 400
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing refresh_token, got %d", rr.Code)
+	}
+}
+
+func TestHandleRevokeEmptyToken(t *testing.T) {
+	oauthSrv := testOAuth21Server()
+	sm := testSessionManager(t)
+	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
+
+	// Empty token — RFC 7009 says always return 200
+	req := httptest.NewRequest("POST", "/oauth/revoke", strings.NewReader(""))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 	h.HandleRevoke(rr, req)
 
-	// Fosite returns 200 for valid-format tokens not found, 400 for unparseable tokens.
-	// Both are acceptable — handler doesn't panic and responds with JSON.
-	if rr.Code != http.StatusOK && rr.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 200 or 400", rr.Code)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 for revoke, got %d", rr.Code)
 	}
 }

@@ -256,8 +256,18 @@ func (s *SQLiteStore) GetRefreshToken(ctx context.Context, tokenHash string) (*R
 }
 
 func (s *SQLiteStore) DeleteRefreshToken(ctx context.Context, tokenHash string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM server_refresh_tokens WHERE token_hash = ?`, tokenHash)
-	return err
+	res, err := s.db.ExecContext(ctx, `DELETE FROM server_refresh_tokens WHERE token_hash = ?`, tokenHash)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("refresh token: %w", ErrNotFound)
+	}
+	return nil
 }
 
 func (s *SQLiteStore) DeleteUserRefreshTokens(ctx context.Context, userID string) error {
