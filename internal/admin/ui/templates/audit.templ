@@ -1,0 +1,50 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/piper/oauth-token-relay/internal/store"
+)
+
+type AuditData struct {
+	Entries []*store.AuditEntry
+	Total   int
+	Limit   int
+	Offset  int
+	Filter  store.AuditFilter
+}
+
+templ Audit(data AuditData) {
+	@Layout("Audit Log") {
+		<h1>Audit Log ({ fmt.Sprint(data.Total) } entries)</h1>
+		<form method="get" action="/admin/audit" class="filter-form">
+			<input type="text" name="user_id" placeholder="User ID" value={ data.Filter.UserID }/>
+			<input type="text" name="action" placeholder="Action" value={ data.Filter.Action }/>
+			<button type="submit" class="btn">Filter</button>
+		</form>
+		<table>
+			<thead>
+				<tr>
+					<th>User</th>
+					<th>Action</th>
+					<th>Provider</th>
+					<th>IP</th>
+					<th>Time</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, e := range data.Entries {
+					<tr>
+						<td><a href={ templ.SafeURL("/admin/users/" + e.UserID) }>{ e.UserID }</a></td>
+						<td>{ e.Action }</td>
+						<td>{ e.ProviderID }</td>
+						<td>{ e.IPAddress }</td>
+						<td>{ e.CreatedAt.Format("2006-01-02 15:04:05") }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		if data.Offset+data.Limit < data.Total {
+			<a href={ templ.SafeURL(fmt.Sprintf("/admin/audit?offset=%d&limit=%d&user_id=%s&action=%s", data.Offset+data.Limit, data.Limit, data.Filter.UserID, data.Filter.Action)) } class="btn">Next</a>
+		}
+	}
+}

@@ -1,0 +1,51 @@
+package templates
+
+import (
+	"github.com/piper/oauth-token-relay/internal/store"
+)
+
+type UserDetailData struct {
+	User  *store.User
+	Audit []*store.AuditEntry
+}
+
+templ UserDetail(data UserDetailData) {
+	@Layout("User: " + data.User.Email) {
+		<h1>{ data.User.Email }</h1>
+		<dl>
+			<dt>ID</dt>
+			<dd>{ data.User.ID }</dd>
+			<dt>Name</dt>
+			<dd>{ data.User.Name }</dd>
+			<dt>Role</dt>
+			<dd>{ data.User.Role }</dd>
+			<dt>Provider</dt>
+			<dd>{ data.User.ProviderID }</dd>
+		</dl>
+		<h2>Recent Audit Entries</h2>
+		if len(data.Audit) == 0 {
+			<p>No audit entries.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>Action</th>
+						<th>Provider</th>
+						<th>IP</th>
+						<th>Time</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, e := range data.Audit {
+						<tr>
+							<td>{ e.Action }</td>
+							<td>{ e.ProviderID }</td>
+							<td>{ e.IPAddress }</td>
+							<td>{ e.CreatedAt.Format("2006-01-02 15:04:05") }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	}
+}

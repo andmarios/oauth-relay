@@ -1,0 +1,37 @@
+package templates
+
+import "fmt"
+
+type DashboardData struct {
+	UserCount  int
+	UsageStats map[string]int64
+	Providers  []string
+}
+
+templ Dashboard(data DashboardData) {
+	@Layout("Dashboard") {
+		<h1>Dashboard</h1>
+		<div class="cards">
+			<div class="card">
+				<h3>Users</h3>
+				<p class="card-value">{ fmt.Sprint(data.UserCount) }</p>
+			</div>
+			<div class="card">
+				<h3>Providers</h3>
+				<p class="card-value">{ fmt.Sprint(len(data.Providers)) }</p>
+			</div>
+			for action, count := range data.UsageStats {
+				<div class="card">
+					<h3>{ action }</h3>
+					<p class="card-value">{ fmt.Sprint(count) }</p>
+				</div>
+			}
+		</div>
+		<h2>Configured Providers</h2>
+		<ul>
+			for _, p := range data.Providers {
+				<li>{ p }</li>
+			}
+		</ul>
+	}
+}

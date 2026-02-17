@@ -11,7 +11,8 @@ import (
 
 // SQLiteStore implements Store using SQLite.
 type SQLiteStore struct {
-	db *sql.DB
+	db   *sql.DB
+	path string
 }
 
 // NewSQLiteStore opens a SQLite database at the given path with WAL mode.
@@ -25,7 +26,7 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
-	return &SQLiteStore{db: db}, nil
+	return &SQLiteStore{db: db, path: path}, nil
 }
 
 func (s *SQLiteStore) Close() error {

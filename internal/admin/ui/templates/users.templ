@@ -1,0 +1,57 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/piper/oauth-token-relay/internal/store"
+)
+
+type UsersData struct {
+	Users  []*store.User
+	Total  int
+	Limit  int
+	Offset int
+}
+
+templ Users(data UsersData) {
+	@Layout("Users") {
+		<h1>Users ({ fmt.Sprint(data.Total) })</h1>
+		<table>
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Email</th>
+					<th>Name</th>
+					<th>Role</th>
+					<th>Provider</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, u := range data.Users {
+					<tr>
+						<td><a href={ templ.SafeURL("/admin/users/" + u.ID) }>{ u.ID }</a></td>
+						<td>{ u.Email }</td>
+						<td>{ u.Name }</td>
+						<td>{ u.Role }</td>
+						<td>{ u.ProviderID }</td>
+						<td>
+							<button
+								hx-delete={ "/admin/api/users/" + u.ID }
+								hx-confirm="Delete this user?"
+								hx-target="closest tr"
+								hx-swap="outerHTML"
+								class="btn btn-danger"
+							>Delete</button>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		if data.Offset > 0 {
+			<a href={ templ.SafeURL(fmt.Sprintf("/admin/users?offset=%d&limit=%d", data.Offset-data.Limit, data.Limit)) } class="btn">Previous</a>
+		}
+		if data.Offset+data.Limit < data.Total {
+			<a href={ templ.SafeURL(fmt.Sprintf("/admin/users?offset=%d&limit=%d", data.Offset+data.Limit, data.Limit)) } class="btn">Next</a>
+		}
+	}
+}
