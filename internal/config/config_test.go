@@ -58,7 +58,7 @@ func TestLoadConfigEnvExpansion(t *testing.T) {
 	t.Setenv("TEST_SECRET", "expanded-secret")
 	yaml := `
 server:
-  address: ":8080"
+  address: ":8085"
 storage:
   driver: sqlite
   sqlite:
@@ -98,7 +98,7 @@ providers: {}
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	if cfg.Server.Address != ":8080" {
+	if cfg.Server.Address != ":8085" {
 		t.Errorf("default address = %q, want :8080", cfg.Server.Address)
 	}
 	if cfg.Server.ReadTimeout != 30*time.Second {

@@ -14,6 +14,7 @@ type TokenResult struct {
 type Provider interface {
 	ID() string
 	DisplayName() string
+	ClientID() string
 	AuthURL(state string, scopes []string) string
 	Exchange(ctx context.Context, code string) (*TokenResult, error)
 	Refresh(ctx context.Context, refreshToken string) (*TokenResult, error)

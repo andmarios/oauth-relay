@@ -22,7 +22,7 @@ func TestSecurityHeaders(t *testing.T) {
 	checks := map[string]string{
 		"X-Content-Type-Options":    "nosniff",
 		"X-Frame-Options":           "DENY",
-		"Content-Security-Policy":   "default-src 'self'",
+		"Content-Security-Policy":   "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com",
 		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
 	}
 	for header, want := range checks {

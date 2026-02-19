@@ -32,6 +32,7 @@ type mockProvider struct {
 
 func (m *mockProvider) ID() string          { return m.id }
 func (m *mockProvider) DisplayName() string { return m.displayName }
+func (m *mockProvider) ClientID() string    { return "mock-client-id" }
 func (m *mockProvider) AuthURL(state string, scopes []string) string {
 	return m.authURLBase + "?state=" + state
 }

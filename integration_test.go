@@ -25,6 +25,7 @@ type mockIntegrationProvider struct{}
 
 func (m *mockIntegrationProvider) ID() string          { return "test-provider" }
 func (m *mockIntegrationProvider) DisplayName() string { return "Test Provider" }
+func (m *mockIntegrationProvider) ClientID() string    { return "test-client-id" }
 func (m *mockIntegrationProvider) AuthURL(state string, _ []string) string {
 	return "http://localhost/fake-auth?state=" + state
 }

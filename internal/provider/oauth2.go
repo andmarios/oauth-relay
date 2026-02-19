@@ -57,6 +57,7 @@ func NewOAuth2Provider(cfg OAuth2Config) *OAuth2Provider {
 
 func (p *OAuth2Provider) ID() string          { return p.id }
 func (p *OAuth2Provider) DisplayName() string { return p.displayName }
+func (p *OAuth2Provider) ClientID() string    { return p.config.ClientID }
 
 // AuthURL builds the authorization URL with the given state and scopes.
 func (p *OAuth2Provider) AuthURL(state string, scopes []string) string {

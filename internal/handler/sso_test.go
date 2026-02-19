@@ -43,6 +43,7 @@ type mockSSOStore struct {
 	store.Store
 	users        map[string]*store.User
 	createdUsers []*store.User
+	providers    []*store.Provider
 }
 
 func newMockSSOStore() *mockSSOStore {
@@ -65,6 +66,15 @@ func (s *mockSSOStore) CreateUser(_ context.Context, u *store.User) error {
 }
 
 func (s *mockSSOStore) UpdateLastLogin(_ context.Context, _ string) error {
+	return nil
+}
+
+func (s *mockSSOStore) ListProviders(_ context.Context) ([]*store.Provider, error) {
+	return s.providers, nil
+}
+
+func (s *mockSSOStore) UpdateUser(_ context.Context, u *store.User) error {
+	s.users[u.ID] = u
 	return nil
 }
 

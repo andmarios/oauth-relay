@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/piper/oauth-token-relay/internal/admin"
+	ui "github.com/piper/oauth-token-relay/internal/admin/ui"
 	"github.com/piper/oauth-token-relay/internal/auth"
 	"github.com/piper/oauth-token-relay/internal/config"
 	"github.com/piper/oauth-token-relay/internal/handler"
@@ -84,7 +86,7 @@ func main() {
 		SecretKey: []byte(cfg.JWT.SigningKey),
 		Clients: []*auth.OAuth21Client{{
 			ID:            "cli",
-			RedirectURIs:  []string{"http://localhost:8085/callback"},
+			RedirectURIs:  []string{baseURL + "/oauth/cli-callback"},
 			GrantTypes:    []string{"authorization_code", "refresh_token"},
 			ResponseTypes: []string{"code"},
 			Scopes:        []string{"openid", "offline"},
@@ -132,6 +134,16 @@ func main() {
 	// Health (no auth)
 	mux.Handle("GET /health", healthH)
 
+	// Root redirect — humans visiting the server want the admin dashboard.
+	// The /oauth/* endpoints are for CLI-initiated PKCE flows only.
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/admin/", http.StatusFound)
+	})
+
+	// Public static assets (logo, favicon — no auth required)
+	publicStaticFS, _ := fs.Sub(ui.Static, "static")
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(publicStaticFS))))
+
 	// SSO login (replaces email-only login — users authenticate via identity provider)
 	mux.HandleFunc("GET /oauth/login", ssoH.HandleLoginPage)
 	mux.HandleFunc("GET /admin/login", ssoH.HandleLoginPage)
@@ -140,6 +152,8 @@ func main() {
 
 	// OAuth 2.1 AS endpoints (no server auth — these are the auth endpoints)
 	mux.HandleFunc("GET /oauth/authorize", oauthH.HandleAuthorize)
+	mux.HandleFunc("GET /oauth/cli-callback", oauthH.HandleCLICallback)
+	mux.HandleFunc("GET /oauth/cli-poll", oauthH.HandleCLIPoll)
 	mux.HandleFunc("POST /oauth/token", oauthH.HandleToken)
 	mux.HandleFunc("POST /oauth/revoke", oauthH.HandleRevoke)
 
@@ -175,6 +189,7 @@ func main() {
 				return
 			case <-ticker.C:
 				relayH.CleanExpiredTokenCache()
+				oauthH.CleanExpiredPendingCodes()
 			}
 		}
 	}()

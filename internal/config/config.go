@@ -99,7 +99,7 @@ func Load(path string) (*Config, error) {
 
 func (c *Config) applyDefaults() {
 	if c.Server.Address == "" {
-		c.Server.Address = ":8080"
+		c.Server.Address = ":8085"
 	}
 	if c.Server.ReadTimeout == 0 {
 		c.Server.ReadTimeout = 30 * time.Second
