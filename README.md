@@ -4,17 +4,152 @@ Generic OAuth 2.1 authorization server + multi-provider OAuth 2.0 token relay.
 
 Centralizes OAuth credential management: the server holds `client_secret`, clients hold tokens. The server facilitates OAuth flows but is never in the data path — API calls go directly from clients to providers.
 
+## How It Works
+
+```
+CLI                         Relay Server                  Google / GitHub / etc.
+ |                               |                               |
+ |-- PKCE auth (SSO login) ---->|                               |
+ |<-- server JWT ---------------| (identity verified via SSO)   |
+ |                               |                               |
+ |-- start relay (JWT) -------->|                               |
+ |<-- auth_url -----------------| (provider consent URL)        |
+ |                               |                               |
+ |   [browser: user consents]   |-- exchange code ------------->|
+ |                               |<-- access + refresh tokens --|
+ |                               |                               |
+ |-- complete (JWT) ----------->|                               |
+ |<-- tokens (one-time) --------| (deleted from memory)         |
+ |                               |                               |
+ |-- API calls directly ------------------------------------------->|
+```
+
+**Two layers of auth:**
+
+1. **Identity** — CLI authenticates to the relay server via OAuth 2.1 PKCE + SSO (Google, GitHub, etc.). The server issues JWTs.
+2. **API access** — CLI requests upstream provider tokens through the relay. The server holds `client_secret` and performs the OAuth exchange. Tokens are delivered once and held only in memory briefly.
+
+## Screenshots
+
+| Login | Dashboard | Users |
+|-------|-----------|-------|
+| ![Login](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) | ![Users](docs/screenshots/users.png) |
+
 ## Quick Start
 
 ```bash
+# 1. Copy and edit config
 cp config.example.yaml config.yaml
-# Edit config.yaml with your provider credentials
+
+# 2. Set required environment variables
+export JWT_SIGNING_KEY=$(openssl rand -base64 32)
+export GOOGLE_IDP_CLIENT_ID=...       # Identity provider (for SSO login)
+export GOOGLE_IDP_CLIENT_SECRET=...
+export GOOGLE_CORP_CLIENT_ID=...      # Relay provider (for API tokens)
+export GOOGLE_CORP_CLIENT_SECRET=...
+
+# 3. Run
 go run ./cmd/oauth-token-relay -config config.yaml
 ```
+
+The server starts on `:8085` by default. Visit `http://localhost:8085/` to access the admin dashboard.
+
+## Configuration
+
+See [`config.example.yaml`](config.example.yaml) for all options. Key sections:
+
+| Section | Purpose |
+|---------|---------|
+| `server` | Address, timeouts |
+| `storage` | SQLite (default) or PostgreSQL |
+| `jwt` | Signing key, issuer, token TTLs |
+| `providers` | Upstream OAuth providers for token relay (Google, Zendesk, etc.) |
+| `identity_providers` | SSO providers for user login (Google, GitHub, etc.) |
+| `admin.bootstrap_admins` | Email addresses auto-promoted to admin on first SSO login |
+| `backup` | Optional S3 backup for SQLite |
+
+Environment variables in config values (e.g. `${JWT_SIGNING_KEY}`) are expanded at load time.
+
+## API Endpoints
+
+### SSO + OAuth 2.1 AS
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `GET` | `/oauth/login` | - | SSO login page (for CLI PKCE flow) |
+| `GET` | `/admin/login` | - | SSO login page (for admin dashboard) |
+| `GET` | `/sso/start/{provider}` | - | Redirect to identity provider |
+| `GET` | `/sso/callback` | - | Identity provider callback |
+| `GET` | `/oauth/authorize` | session | PKCE authorization endpoint (Fosite) |
+| `GET` | `/oauth/cli-callback` | - | Stores auth code for CLI polling |
+| `GET` | `/oauth/cli-poll` | - | CLI polls for auth code |
+| `POST` | `/oauth/token` | - | Code exchange / refresh (issues server JWTs) |
+| `POST` | `/oauth/revoke` | - | Revoke server tokens |
+
+### Token Relay
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `POST` | `/auth/tokens/start` | JWT | Start upstream OAuth flow |
+| `GET` | `/auth/tokens/callback` | - | Provider callback (browser redirect) |
+| `POST` | `/auth/tokens/complete` | JWT | Poll/retrieve upstream tokens |
+| `POST` | `/auth/tokens/refresh` | JWT | Refresh upstream token via server |
+| `POST` | `/auth/tokens/revoke` | JWT | Revoke upstream token |
+
+### Admin
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| `GET` | `/admin/` | admin | Dashboard UI |
+| `GET` | `/admin/api/users` | admin | List users |
+| `GET` | `/admin/api/users/{id}` | admin | Get user |
+| `DELETE` | `/admin/api/users/{id}` | admin | Delete user |
+| `POST` | `/admin/api/users/{id}/assign-provider` | admin | Assign relay provider to user |
+| `GET` | `/admin/api/usage` | admin | Usage statistics |
+| `GET` | `/admin/api/audit` | admin | Audit log |
+| `GET` | `/admin/api/providers` | admin | List relay providers |
+| `GET` | `/health` | - | Health check |
+
+## Architecture
+
+```
+cmd/oauth-token-relay/     Entry point, route wiring
+internal/
+  auth/                    JWT service, OAuth 2.1 server (Fosite), session manager, middleware
+  config/                  YAML config loading with env var expansion
+  handler/                 HTTP handlers: SSO, OAuth, relay, admin API
+  idp/                     Identity provider abstraction (SSO login)
+  provider/                Upstream OAuth provider abstraction (token relay)
+  server/                  HTTP server with graceful shutdown, security headers
+  store/                   SQLite storage: users, providers, sessions, audit, usage
+  admin/ui/                Embedded admin dashboard (HTML templates + static assets)
+  httputil/                JSON request/response helpers
+k8s/                       Kubernetes deployment manifests
+```
+
+## Security
+
+- Upstream tokens are **never persisted to the database** — held in memory for max 5 minutes, delivered once, then deleted
+- OAuth 2.1 with **mandatory PKCE** (S256) for all authorization code flows
+- Server JWTs with **refresh token rotation** (old token deleted atomically on use)
+- **SSO-only authentication** — no password/email login; users prove identity via external provider
+- Session cookies are **encrypted** (AES-GCM) and scoped by path
+- **CSP headers**: `default-src 'self'` with explicit allowlists for fonts
+- **Auto-provisioning**: first login creates a user account; bootstrap admins configured via config
 
 ## Development
 
 ```bash
+# Run tests
 go test ./...
+
+# Run with race detector
+go test -race ./...
+
+# Build
 go build -o oauth-token-relay ./cmd/oauth-token-relay
+
+# Run locally
+cp .env.test .env && set -a && source .env && set +a
+go run ./cmd/oauth-token-relay -config config.yaml
 ```
