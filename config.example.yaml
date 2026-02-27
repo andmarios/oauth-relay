@@ -37,6 +37,15 @@ providers:
       access_type: "offline"
       prompt: "consent"
 
+  # zendesk:
+  #   display_name: "Zendesk"
+  #   client_id: "${ZENDESK_CLIENT_ID}"
+  #   client_secret: "${ZENDESK_CLIENT_SECRET}"
+  #   authorize_url: "https://YOUR_SUBDOMAIN.zendesk.com/oauth/authorizations/new"
+  #   token_url: "https://YOUR_SUBDOMAIN.zendesk.com/oauth/tokens"
+  #   revoke_url: "https://YOUR_SUBDOMAIN.zendesk.com/oauth/revoke"
+  #   extra_params: {}
+
 # Identity providers for SSO login (separate from relay providers)
 # At least one is required — users authenticate via SSO to prove identity
 identity_providers:

@@ -70,6 +70,62 @@ See [`config.example.yaml`](config.example.yaml) for all options. Key sections:
 
 Environment variables in config values (e.g. `${JWT_SIGNING_KEY}`) are expanded at load time.
 
+## Provider Setup
+
+Each upstream provider (Google, Zendesk, etc.) needs an OAuth client registered on the provider's side. The relay constructs the callback URL as:
+
+```
+http://<relay-host>:<port>/auth/tokens/callback
+```
+
+**The OAuth client must be `confidential` (not `public`).** The relay is a server-side component that securely holds the `client_secret`. If the provider's OAuth client is set to "public", the authorize endpoint may require PKCE parameters that the relay doesn't send for upstream flows, causing `invalid_request` errors.
+
+### Google Workspace
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) -> APIs & Services -> Credentials
+2. Create an **OAuth 2.0 Client ID** (Web Application)
+3. Add redirect URI: `http://localhost:8085/auth/tokens/callback`
+4. Copy Client ID and Client Secret to `GOOGLE_CORP_CLIENT_ID` and `GOOGLE_CORP_CLIENT_SECRET` env vars
+5. The `extra_params` with `access_type: "offline"` and `prompt: "consent"` ensure refresh tokens are issued on every consent
+
+### Zendesk
+
+1. Go to **Zendesk Admin Center** -> Apps & Integrations -> APIs -> OAuth Clients
+2. Create a new OAuth client
+3. Set a unique identifier (this becomes the `client_id`)
+4. **Set Client Kind to "Confidential"** -- "Public" requires PKCE which the relay doesn't send for upstream flows, causing `invalid_request` errors
+5. Add redirect URI: `http://localhost:8085/auth/tokens/callback`
+6. Copy the generated Client Secret to the `ZENDESK_CLIENT_SECRET` env var
+
+### CLI Configuration
+
+Once the relay is running and providers are configured, point CLIs at it:
+
+**gws-cli (Google Workspace):**
+
+```bash
+gws-cli config set-mode server \
+  --url http://localhost:8085 \
+  --provider google-corp \
+  -a myaccount
+
+gws-cli auth server-login -a myaccount
+gws-cli drive list -a myaccount --max-results 3
+```
+
+**zd-cli (Zendesk):**
+
+```bash
+zd-cli auth set-mode \
+  --mode server \
+  --url http://localhost:8085 \
+  --provider zendesk \
+  --subdomain YOUR_SUBDOMAIN
+
+zd-cli auth server-login
+zd-cli me
+```
+
 ## API Endpoints
 
 ### SSO + OAuth 2.1 AS

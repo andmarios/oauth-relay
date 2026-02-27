@@ -120,6 +120,7 @@ func (h *RelayHandler) HandleStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authURL := prov.AuthURL(state, req.Scopes)
+	log.Printf("relay_start: provider=%s scopes=%v auth_url=%s", providerID, req.Scopes, authURL)
 
 	if err := h.store.CreateAuditEntry(ctx, &store.AuditEntry{
 		UserID:     claims.Subject,

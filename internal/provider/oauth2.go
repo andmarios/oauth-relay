@@ -67,7 +67,10 @@ func (p *OAuth2Provider) AuthURL(state string, scopes []string) string {
 	for k, v := range p.extraParams {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}
-	return p.config.AuthCodeURL(state, opts...)
+	u := p.config.AuthCodeURL(state, opts...)
+	// Go's url.Values.Encode() uses '+' for spaces (form-encoding), but some
+	// OAuth providers (e.g. Zendesk) require '%20' (RFC 3986 percent-encoding).
+	return strings.ReplaceAll(u, "+", "%20")
 }
 
 // Exchange trades an authorization code for tokens.
