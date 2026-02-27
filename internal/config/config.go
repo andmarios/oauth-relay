@@ -20,6 +20,8 @@ type Config struct {
 
 type ServerConfig struct {
 	Address         string        `yaml:"address"`
+	BaseURL         string        `yaml:"base_url"`
+	SecureCookies   *bool         `yaml:"secure_cookies"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
@@ -101,6 +103,10 @@ func (c *Config) applyDefaults() {
 	if c.Server.Address == "" {
 		c.Server.Address = ":8085"
 	}
+	if c.Server.SecureCookies == nil {
+		t := true
+		c.Server.SecureCookies = &t
+	}
 	if c.Server.ReadTimeout == 0 {
 		c.Server.ReadTimeout = 30 * time.Second
 	}
@@ -129,6 +135,9 @@ func (c *Config) Validate() error {
 	if c.JWT.SigningKey == "" {
 		return fmt.Errorf("jwt.signing_key is required")
 	}
+	if len(c.JWT.SigningKey) < 32 {
+		return fmt.Errorf("jwt.signing_key must be at least 32 bytes (256 bits) for HS256 security")
+	}
 	if c.Storage.Driver != "sqlite" && c.Storage.Driver != "postgres" {
 		return fmt.Errorf("storage.driver must be 'sqlite' or 'postgres', got %q", c.Storage.Driver)
 	}
@@ -137,6 +146,20 @@ func (c *Config) Validate() error {
 	}
 	if c.Storage.Driver == "postgres" && c.Storage.Postgres.DSN == "" {
 		return fmt.Errorf("storage.postgres.dsn is required when driver is postgres")
+	}
+	for id, p := range c.Providers {
+		if p.ClientID == "" {
+			return fmt.Errorf("providers.%s.client_id is required", id)
+		}
+		if p.ClientSecret == "" {
+			return fmt.Errorf("providers.%s.client_secret is required", id)
+		}
+		if p.AuthorizeURL == "" {
+			return fmt.Errorf("providers.%s.authorize_url is required", id)
+		}
+		if p.TokenURL == "" {
+			return fmt.Errorf("providers.%s.token_url is required", id)
+		}
 	}
 	if len(c.IdentityProviders) == 0 {
 		return fmt.Errorf("identity_providers: at least one identity provider is required")

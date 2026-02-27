@@ -11,10 +11,11 @@ import (
 	"github.com/piper/oauth-token-relay/internal/auth"
 )
 
-func testOAuth21Server() *auth.OAuth21Server {
-	return auth.NewOAuth21Server(auth.OAuth21Config{
+func testOAuth21Server(t *testing.T) *auth.OAuth21Server {
+	t.Helper()
+	srv, err := auth.NewOAuth21Server(auth.OAuth21Config{
 		Issuer:    "http://localhost:8080",
-		SecretKey: []byte("test-secret-key-256-bits-long!!"),
+		SecretKey: []byte("test-secret-key-256-bits-long!!!!"), // 32 bytes
 		Clients: []*auth.OAuth21Client{
 			{
 				ID:            "cli",
@@ -26,6 +27,10 @@ func testOAuth21Server() *auth.OAuth21Server {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatalf("NewOAuth21Server: %v", err)
+	}
+	return srv
 }
 
 func testSessionManager(t *testing.T) *auth.SessionManager {
@@ -38,7 +43,7 @@ func testSessionManager(t *testing.T) *auth.SessionManager {
 }
 
 func TestHandleAuthorizeNoSession(t *testing.T) {
-	oauthSrv := testOAuth21Server()
+	oauthSrv := testOAuth21Server(t)
 	sm := testSessionManager(t)
 	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
@@ -57,7 +62,7 @@ func TestHandleAuthorizeNoSession(t *testing.T) {
 }
 
 func TestHandleTokenMissingGrantType(t *testing.T) {
-	oauthSrv := testOAuth21Server()
+	oauthSrv := testOAuth21Server(t)
 	sm := testSessionManager(t)
 	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
@@ -73,7 +78,7 @@ func TestHandleTokenMissingGrantType(t *testing.T) {
 }
 
 func TestHandleTokenInvalidCode(t *testing.T) {
-	oauthSrv := testOAuth21Server()
+	oauthSrv := testOAuth21Server(t)
 	sm := testSessionManager(t)
 	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
@@ -95,7 +100,7 @@ func TestHandleTokenInvalidCode(t *testing.T) {
 }
 
 func TestHandleTokenRefreshMissing(t *testing.T) {
-	oauthSrv := testOAuth21Server()
+	oauthSrv := testOAuth21Server(t)
 	sm := testSessionManager(t)
 	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 
@@ -114,7 +119,7 @@ func TestHandleTokenRefreshMissing(t *testing.T) {
 }
 
 func TestHandleRevokeEmptyToken(t *testing.T) {
-	oauthSrv := testOAuth21Server()
+	oauthSrv := testOAuth21Server(t)
 	sm := testSessionManager(t)
 	h := NewOAuthHandler(oauthSrv, nil, nil, sm, time.Hour, 30*24*time.Hour)
 

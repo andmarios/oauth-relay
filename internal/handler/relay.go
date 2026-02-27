@@ -225,6 +225,7 @@ func (h *RelayHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", cspWithFonts)
 	fmt.Fprint(w, `<!DOCTYPE html>
 <html lang="en">
 <head>

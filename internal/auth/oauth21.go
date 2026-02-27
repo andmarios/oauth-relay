@@ -40,7 +40,12 @@ type OAuth21Server struct {
 }
 
 // NewOAuth21Server creates a configured Fosite-backed OAuth 2.1 server.
-func NewOAuth21Server(cfg OAuth21Config) *OAuth21Server {
+// SecretKey must be at least 32 bytes for AES-256 security.
+func NewOAuth21Server(cfg OAuth21Config) (*OAuth21Server, error) {
+	if len(cfg.SecretKey) < 32 {
+		return nil, fmt.Errorf("oauth21: secret key must be at least 32 bytes, got %d", len(cfg.SecretKey))
+	}
+
 	store := NewMemoryStore()
 
 	for _, c := range cfg.Clients {
@@ -56,11 +61,6 @@ func NewOAuth21Server(cfg OAuth21Config) *OAuth21Server {
 	}
 
 	key := cfg.SecretKey
-	if len(key) < 32 {
-		padded := make([]byte, 32)
-		copy(padded, key)
-		key = padded
-	}
 
 	fositeConfig := &fosite.Config{
 		AccessTokenLifespan:         time.Hour,
@@ -87,7 +87,7 @@ func NewOAuth21Server(cfg OAuth21Config) *OAuth21Server {
 	return &OAuth21Server{
 		Provider: provider,
 		Store:    store,
-	}
+	}, nil
 }
 
 // GenerateState creates a cryptographically random state string.
@@ -319,6 +319,56 @@ func (s *MemoryStore) DeletePKCERequestSession(_ context.Context, signature stri
 	defer s.mu.Unlock()
 	delete(s.pkceRequests, signature)
 	return nil
+}
+
+// CleanExpired removes stale entries from all in-memory maps.
+// Auth codes and PKCE requests older than 10 minutes, access tokens older than 1 hour,
+// refresh tokens older than 30 days, and all invalidated codes are cleaned.
+func (s *MemoryStore) CleanExpired() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now()
+
+	for k, req := range s.authCodes {
+		if sess, ok := req.GetSession().(*fosite.DefaultSession); ok && sess != nil {
+			if sess.ExpiresAt != nil {
+				if exp, exists := sess.ExpiresAt[fosite.AuthorizeCode]; exists && now.After(exp) {
+					delete(s.authCodes, k)
+					continue
+				}
+			}
+		}
+		// Fallback: remove if request was created > 10 minutes ago
+		if now.Sub(req.GetRequestedAt()) > 10*time.Minute {
+			delete(s.authCodes, k)
+		}
+	}
+
+	for k, req := range s.accessTokens {
+		if now.Sub(req.GetRequestedAt()) > time.Hour {
+			delete(s.accessTokens, k)
+		}
+	}
+
+	for k, rt := range s.refreshTokens {
+		if now.Sub(rt.Request.GetRequestedAt()) > 30*24*time.Hour {
+			delete(s.refreshTokens, k)
+		}
+	}
+
+	for k, req := range s.pkceRequests {
+		if now.Sub(req.GetRequestedAt()) > 10*time.Minute {
+			delete(s.pkceRequests, k)
+		}
+	}
+
+	// Clear all invalidated codes (they are no longer needed once expired)
+	for k := range s.invalidCodes {
+		if _, exists := s.authCodes[k]; !exists {
+			delete(s.invalidCodes, k)
+		}
+	}
 }
 
 // Interface compliance checks.

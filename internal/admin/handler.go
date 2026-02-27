@@ -44,8 +44,6 @@ func NewUIHandler(st store.Store, reg *provider.Registry) *UIHandler {
 }
 
 func (h *UIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Relax CSP for admin UI pages to allow htmx event handling
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'")
 	h.mux.ServeHTTP(w, r)
 }
 

@@ -261,8 +261,8 @@ func TestHandleSSOCallbackFullFlow(t *testing.T) {
 	// Create a request and set the SSO cookie
 	rr := httptest.NewRecorder()
 	ssoSM.Create(rr, &auth.SessionData{
-		UserID:     state,
-		Email:      returnTo,
+		State:      state,
+		ReturnTo:   returnTo,
 		ProviderID: "google",
 	})
 	ssoCookie := rr.Result().Cookies()[0]
@@ -297,8 +297,8 @@ func TestHandleSSOCallbackAutoProvision(t *testing.T) {
 	state := "state-abc"
 	rr := httptest.NewRecorder()
 	ssoSM.Create(rr, &auth.SessionData{
-		UserID:     state,
-		Email:      "/oauth/authorize",
+		State:      state,
+		ReturnTo:   "/oauth/authorize",
 		ProviderID: "google",
 	})
 	ssoCookie := rr.Result().Cookies()[0]
@@ -338,8 +338,8 @@ func TestHandleSSOCallbackBootstrapAdmin(t *testing.T) {
 	state := "state-admin"
 	rr := httptest.NewRecorder()
 	ssoSM.Create(rr, &auth.SessionData{
-		UserID:     state,
-		Email:      "/admin/",
+		State:      state,
+		ReturnTo:   "/admin/",
 		ProviderID: "google",
 	})
 	ssoCookie := rr.Result().Cookies()[0]
@@ -375,8 +375,8 @@ func TestHandleSSOCallbackNonAdminDenied(t *testing.T) {
 	state := "state-nonadmin"
 	rr := httptest.NewRecorder()
 	ssoSM.Create(rr, &auth.SessionData{
-		UserID:     state,
-		Email:      "/admin/",
+		State:      state,
+		ReturnTo:   "/admin/",
 		ProviderID: "google",
 	})
 	ssoCookie := rr.Result().Cookies()[0]
@@ -404,8 +404,8 @@ func TestHandleSSOCallbackStateMismatch(t *testing.T) {
 	// Create cookie with one state
 	rr := httptest.NewRecorder()
 	ssoSM.Create(rr, &auth.SessionData{
-		UserID:     "correct-state",
-		Email:      "/oauth/authorize",
+		State:      "correct-state",
+		ReturnTo:   "/oauth/authorize",
 		ProviderID: "google",
 	})
 	ssoCookie := rr.Result().Cookies()[0]
@@ -454,8 +454,8 @@ func TestHandleSSOCallbackExchangeError(t *testing.T) {
 	state := "state-err"
 	rr := httptest.NewRecorder()
 	ssoSM.Create(rr, &auth.SessionData{
-		UserID:     state,
-		Email:      "/oauth/authorize",
+		State:      state,
+		ReturnTo:   "/oauth/authorize",
 		ProviderID: "google",
 	})
 	ssoCookie := rr.Result().Cookies()[0]

@@ -55,7 +55,7 @@ providers:
 }
 
 func TestLoadConfigEnvExpansion(t *testing.T) {
-	t.Setenv("TEST_SECRET", "expanded-secret")
+	t.Setenv("TEST_SECRET", "expanded-secret-that-is-at-least-32-bytes!")
 	yaml := `
 server:
   address: ":8085"
@@ -75,8 +75,8 @@ providers: {}
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	if cfg.JWT.SigningKey != "expanded-secret" {
-		t.Errorf("signing_key = %q, want expanded-secret", cfg.JWT.SigningKey)
+	if cfg.JWT.SigningKey != "expanded-secret-that-is-at-least-32-bytes!" {
+		t.Errorf("signing_key = %q, want expanded value", cfg.JWT.SigningKey)
 	}
 }
 
@@ -104,6 +104,9 @@ providers: {}
 	if cfg.Server.ReadTimeout != 30*time.Second {
 		t.Errorf("default read_timeout = %v, want 30s", cfg.Server.ReadTimeout)
 	}
+	if cfg.Server.SecureCookies == nil || !*cfg.Server.SecureCookies {
+		t.Error("default secure_cookies should be true")
+	}
 }
 
 func TestLoadConfigMissingFile(t *testing.T) {
@@ -114,19 +117,49 @@ func TestLoadConfigMissingFile(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	// Missing signing key
-	cfg := &Config{
-		Storage: StorageConfig{Driver: "sqlite", SQLite: SQLiteConfig{Path: "./test.db"}},
-		JWT:     JWTConfig{Issuer: "test"},
+	base := func() *Config {
+		return &Config{
+			Storage: StorageConfig{Driver: "sqlite", SQLite: SQLiteConfig{Path: "./test.db"}},
+			JWT:     JWTConfig{SigningKey: "test-key-that-is-at-least-32-bytes!!", Issuer: "test"},
+			IdentityProviders: map[string]IDPConfig{
+				"google": {ClientID: "id", ClientSecret: "secret", AuthorizeURL: "https://a", TokenURL: "https://t", UserInfoURL: "https://u"},
+			},
+		}
 	}
+
+	// Missing signing key
+	cfg := base()
+	cfg.JWT.SigningKey = ""
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected error for missing signing_key")
 	}
 
+	// Short signing key (< 32 bytes)
+	cfg = base()
+	cfg.JWT.SigningKey = "too-short"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for short signing_key")
+	}
+
 	// Invalid storage driver
-	cfg.JWT.SigningKey = "key"
+	cfg = base()
 	cfg.Storage.Driver = "invalid"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected error for invalid driver")
+	}
+
+	// Provider missing client_id
+	cfg = base()
+	cfg.Providers = map[string]ProviderConfig{
+		"bad": {ClientSecret: "s", AuthorizeURL: "https://a", TokenURL: "https://t"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for provider missing client_id")
+	}
+
+	// Valid config
+	cfg = base()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
 	}
 }

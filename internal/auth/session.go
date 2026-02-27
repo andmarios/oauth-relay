@@ -19,11 +19,15 @@ const (
 )
 
 // SessionData holds the authenticated user's identity during the OAuth authorize flow.
+// The State and ReturnTo fields are used by the SSO state cookie to store the OAuth state
+// nonce and return URL during the identity provider redirect.
 type SessionData struct {
 	UserID     string    `json:"uid"`
 	Email      string    `json:"email"`
 	Role       string    `json:"role"`
 	ProviderID string    `json:"pid"`
+	State      string    `json:"state,omitempty"`
+	ReturnTo   string    `json:"return_to,omitempty"`
 	ExpiresAt  time.Time `json:"exp"`
 }
 

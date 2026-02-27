@@ -14,6 +14,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"golang.org/x/time/rate"
+
 	"github.com/piper/oauth-token-relay/internal/admin"
 	ui "github.com/piper/oauth-token-relay/internal/admin/ui"
 	"github.com/piper/oauth-token-relay/internal/auth"
@@ -77,11 +79,14 @@ func main() {
 		cfg.JWT.RefreshTokenTTL,
 	)
 
-	baseURL := "http://localhost" + cfg.Server.Address
+	baseURL := cfg.Server.BaseURL
+	if baseURL == "" {
+		baseURL = "http://localhost" + cfg.Server.Address
+	}
 	registry := provider.NewRegistry(cfg.Providers, baseURL)
 	idpRegistry := idp.NewRegistry(cfg.IdentityProviders, baseURL+"/sso/callback")
 
-	oauthServer := auth.NewOAuth21Server(auth.OAuth21Config{
+	oauthServer, err := auth.NewOAuth21Server(auth.OAuth21Config{
 		Issuer:    cfg.JWT.Issuer,
 		SecretKey: []byte(cfg.JWT.SigningKey),
 		Clients: []*auth.OAuth21Client{{
@@ -93,15 +98,19 @@ func main() {
 			Public:        true,
 		}},
 	})
+	if err != nil {
+		log.Fatalf("oauth21 server: %v", err)
+	}
 
 	// Session manager for login cookies (uses JWT signing key as encryption key)
-	sessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), false)
+	secureCookies := *cfg.Server.SecureCookies
+	sessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), secureCookies)
 	if err != nil {
 		log.Fatalf("session manager: %v", err)
 	}
 
 	// Session manager for admin browser sessions (longer TTL, scoped to /admin/)
-	adminSessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), false,
+	adminSessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), secureCookies,
 		auth.WithCookieName("_otr_admin"),
 		auth.WithPath("/admin/"),
 		auth.WithTTL(8*time.Hour),
@@ -111,7 +120,7 @@ func main() {
 	}
 
 	// Session manager for SSO state cookie (stores state nonce during OAuth redirect)
-	ssoSessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), false,
+	ssoSessionMgr, err := auth.NewSessionManager([]byte(cfg.JWT.SigningKey), secureCookies,
 		auth.WithCookieName("_otr_sso"),
 		auth.WithPath("/"),
 		auth.WithTTL(10*time.Minute),
@@ -144,17 +153,20 @@ func main() {
 	publicStaticFS, _ := fs.Sub(ui.Static, "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(publicStaticFS))))
 
+	// Per-IP rate limiter for sensitive endpoints (10 req/s, burst 20)
+	rateMW := server.RateLimitPerIP(rate.Limit(10), 20)
+
 	// SSO login (replaces email-only login — users authenticate via identity provider)
 	mux.HandleFunc("GET /oauth/login", ssoH.HandleLoginPage)
 	mux.HandleFunc("GET /admin/login", ssoH.HandleLoginPage)
 	mux.HandleFunc("GET /sso/start/{provider}", ssoH.HandleSSOStart)
-	mux.HandleFunc("GET /sso/callback", ssoH.HandleSSOCallback)
+	mux.Handle("GET /sso/callback", rateMW(http.HandlerFunc(ssoH.HandleSSOCallback)))
 
 	// OAuth 2.1 AS endpoints (no server auth — these are the auth endpoints)
 	mux.HandleFunc("GET /oauth/authorize", oauthH.HandleAuthorize)
 	mux.HandleFunc("GET /oauth/cli-callback", oauthH.HandleCLICallback)
-	mux.HandleFunc("GET /oauth/cli-poll", oauthH.HandleCLIPoll)
-	mux.HandleFunc("POST /oauth/token", oauthH.HandleToken)
+	mux.Handle("GET /oauth/cli-poll", rateMW(http.HandlerFunc(oauthH.HandleCLIPoll)))
+	mux.Handle("POST /oauth/token", rateMW(http.HandlerFunc(oauthH.HandleToken)))
 	mux.HandleFunc("POST /oauth/revoke", oauthH.HandleRevoke)
 
 	// Token relay (requires auth)
@@ -190,6 +202,7 @@ func main() {
 			case <-ticker.C:
 				relayH.CleanExpiredTokenCache()
 				oauthH.CleanExpiredPendingCodes()
+				oauthServer.Store.CleanExpired()
 			}
 		}
 	}()

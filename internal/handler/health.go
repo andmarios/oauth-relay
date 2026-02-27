@@ -7,6 +7,9 @@ import (
 	"github.com/piper/oauth-token-relay/internal/provider"
 )
 
+// cspWithFonts is the Content-Security-Policy for pages that use login.css (Google Fonts).
+const cspWithFonts = "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com"
+
 type HealthHandler struct {
 	registry *provider.Registry
 }

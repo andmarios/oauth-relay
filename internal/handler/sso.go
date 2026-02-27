@@ -75,6 +75,7 @@ func (h *SSOHandler) HandleLoginPage(w http.ResponseWriter, r *http.Request) {
 
 	// Render HTML login page with SSO buttons
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", cspWithFonts)
 	w.Header().Set("Cache-Control", "no-store")
 
 	errMsg := r.URL.Query().Get("error")
@@ -175,9 +176,9 @@ func (h *SSOHandler) HandleSSOStart(w http.ResponseWriter, r *http.Request) {
 
 	// Store SSO state in encrypted cookie (provider, return_to, state nonce)
 	if err := h.ssoSession.Create(w, &auth.SessionData{
-		UserID:     state,      // Repurpose UserID field for state nonce
-		Email:      returnTo,   // Repurpose Email field for return_to
-		ProviderID: providerID, // Provider ID
+		State:      state,
+		ReturnTo:   returnTo,
+		ProviderID: providerID,
 	}); err != nil {
 		log.Printf("sso: create state cookie: %v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
@@ -226,13 +227,13 @@ func (h *SSOHandler) HandleSSOCallback(w http.ResponseWriter, r *http.Request) {
 	h.ssoSession.Clear(w)
 
 	// Verify state matches (prevents CSRF)
-	if ssoData.UserID != state {
+	if ssoData.State != state {
 		http.Error(w, "State mismatch — possible CSRF attack", http.StatusBadRequest)
 		return
 	}
 
 	providerID := ssoData.ProviderID
-	returnTo := ssoData.Email // We stored return_to in the Email field
+	returnTo := ssoData.ReturnTo
 
 	// Re-validate return_to from cookie (defense in depth)
 	if !isValidSSOReturnTo(returnTo) || returnTo == "" {

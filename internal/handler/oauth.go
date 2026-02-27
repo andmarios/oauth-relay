@@ -315,6 +315,7 @@ func (h *OAuthHandler) HandleCLICallback(w http.ResponseWriter, r *http.Request)
 	h.pendingMu.Unlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", cspWithFonts)
 	w.Header().Set("Cache-Control", "no-store")
 	fmt.Fprint(w, `<!DOCTYPE html>
 <html lang="en">
@@ -350,6 +351,13 @@ func (h *OAuthHandler) HandleCLICallback(w http.ResponseWriter, r *http.Request)
 
 // HandleCLIPoll handles GET /oauth/cli-poll — CLI polls for the authorization code.
 // Returns 200 with {"code":"..."} if available, or 202 with {"status":"pending"}.
+//
+// Security model: the state parameter is 32 bytes of crypto/rand (256 bits),
+// making it unguessable. Codes are deleted on first retrieval (one-time use)
+// and expire after 10 minutes. Even if an attacker obtained the auth code via
+// polling, the PKCE code_verifier (held only by the legitimate CLI) is required
+// to exchange it for tokens. Per-IP rate limiting further mitigates brute-force.
+// This matches the pattern used by GitHub CLI, Azure CLI, and similar tools.
 func (h *OAuthHandler) HandleCLIPoll(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	if state == "" {

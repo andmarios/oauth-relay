@@ -2,7 +2,7 @@ services:
   oauth-token-relay:
     build: .
     ports:
-      - "8080:8080"
+      - "8085:8085"
     volumes:
       - relay-data:/data
       - ./config.yaml:/etc/oauth-token-relay/config.yaml:ro

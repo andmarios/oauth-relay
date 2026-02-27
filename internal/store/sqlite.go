@@ -106,6 +106,20 @@ func (s *SQLiteStore) Migrate(ctx context.Context) error {
 			return fmt.Errorf("migrate: %w", err)
 		}
 	}
+
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_relay_sessions_state ON relay_sessions(state)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_log_user_created ON audit_log(user_id, created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_usage_events_created ON usage_events(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON server_refresh_tokens(user_id)`,
+	}
+	for _, ddl := range indexes {
+		if _, err := s.db.ExecContext(ctx, ddl); err != nil {
+			return fmt.Errorf("migrate index: %w", err)
+		}
+	}
+
 	// Enable foreign keys
 	_, err := s.db.ExecContext(ctx, "PRAGMA foreign_keys = ON")
 	return err

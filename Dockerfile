@@ -23,7 +23,7 @@ RUN mkdir -p /data && chown appuser:appuser /data
 USER appuser
 WORKDIR /data
 
-EXPOSE 8080
+EXPOSE 8085
 
 ENTRYPOINT ["oauth-token-relay"]
 CMD ["-config", "/etc/oauth-token-relay/config.yaml"]
