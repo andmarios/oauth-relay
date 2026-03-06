@@ -29,8 +29,7 @@ internal/
 ├── store/
 │   ├── store.go                 — Storage interface (Users, Tokens, Audit, etc.)
 │   ├── sqlite.go                — SQLite implementation
-│   ├── postgres.go              — PostgreSQL implementation
-│   └── backup.go                — S3 backup (SQLite only)
+│   └── backup.go                — S3 backup (SQLite only, not yet wired)
 ├── handler/
 │   ├── health.go                — GET /health
 │   ├── oauth.go                 — /oauth/* (PKCE, device flow, token exchange)
@@ -50,7 +49,7 @@ internal/
 
 ### Storage Interface
 
-All database access goes through the `Store` interface. Two implementations: `SqliteStore` and `PostgresStore`. Selected via `storage.driver` config.
+All database access goes through the `Store` interface. Currently only `SQLiteStore` is implemented.
 
 ### Provider Registry
 
@@ -86,13 +85,12 @@ docker compose up
 
 | Library | Purpose |
 |---------|---------|
-| `github.com/ory/fosite` | OAuth 2.1 AS (PKCE, device flow) |
+| `github.com/ory/fosite` | OAuth 2.1 AS (PKCE) |
 | `golang.org/x/oauth2` | Upstream provider OAuth 2.0 client |
 | `github.com/golang-jwt/jwt/v5` | JWT issuance and validation |
 | `github.com/mattn/go-sqlite3` | SQLite driver |
-| `github.com/jackc/pgx/v5` | PostgreSQL driver |
 | `github.com/a-h/templ` | Type-safe Go HTML templates |
-| `github.com/aws/aws-sdk-go-v2` | S3 backup |
+| `github.com/aws/aws-sdk-go-v2` | S3 backup (not yet wired) |
 | `gopkg.in/yaml.v3` | Config parsing |
 
 ## API Contract

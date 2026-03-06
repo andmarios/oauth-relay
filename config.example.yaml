@@ -8,11 +8,9 @@ server:
   shutdown_timeout: 15s
 
 storage:
-  driver: "sqlite"  # "sqlite" or "postgres"
+  driver: "sqlite"
   sqlite:
     path: "./data/relay.db"
-  postgres:
-    dsn: "postgres://user:pass@localhost:5432/relay?sslmode=disable"
 
 backup:
   enabled: false

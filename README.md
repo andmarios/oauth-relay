@@ -61,12 +61,12 @@ See [`config.example.yaml`](config.example.yaml) for all options. Key sections:
 | Section | Purpose |
 |---------|---------|
 | `server` | Address, timeouts |
-| `storage` | SQLite (default) or PostgreSQL |
+| `storage` | SQLite |
 | `jwt` | Signing key, issuer, token TTLs |
 | `providers` | Upstream OAuth providers for token relay (Google, Zendesk, etc.) |
 | `identity_providers` | SSO providers for user login (Google, GitHub, etc.) |
 | `admin.bootstrap_admins` | Email addresses auto-promoted to admin on first SSO login |
-| `backup` | Optional S3 backup for SQLite |
+| `backup` | S3 backup for SQLite (not yet wired) |
 
 Environment variables in config values (e.g. `${JWT_SIGNING_KEY}`) are expanded at load time.
 
