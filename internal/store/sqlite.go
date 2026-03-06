@@ -389,7 +389,7 @@ func (s *SQLiteStore) CreateAuditEntry(ctx context.Context, e *AuditEntry) error
 	return err
 }
 
-func (s *SQLiteStore) ListAuditEntries(ctx context.Context, f AuditFilter) ([]*AuditEntry, int, error) {
+func (s *SQLiteStore) ListAuditEntries(ctx context.Context, f *AuditFilter) ([]*AuditEntry, int, error) {
 	where := "WHERE 1=1"
 	args := []any{}
 

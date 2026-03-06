@@ -61,7 +61,7 @@ func TestSQLiteUserCRUD(t *testing.T) {
 	// Update
 	u.Name = "Alice Updated"
 	u.Role = "admin"
-	if err := s.UpdateUser(ctx, u); err != nil {
+	if err = s.UpdateUser(ctx, u); err != nil {
 		t.Fatalf("UpdateUser: %v", err)
 	}
 	got, err = s.GetUser(ctx, "u1")
@@ -76,7 +76,7 @@ func TestSQLiteUserCRUD(t *testing.T) {
 	}
 
 	// UpdateLastLogin
-	if err := s.UpdateLastLogin(ctx, "u1"); err != nil {
+	if err = s.UpdateLastLogin(ctx, "u1"); err != nil {
 		t.Fatalf("UpdateLastLogin: %v", err)
 	}
 	got, err = s.GetUser(ctx, "u1")
@@ -100,7 +100,7 @@ func TestSQLiteUserCRUD(t *testing.T) {
 	}
 
 	// Delete
-	if err := s.DeleteUser(ctx, "u1"); err != nil {
+	if err = s.DeleteUser(ctx, "u1"); err != nil {
 		t.Fatalf("DeleteUser: %v", err)
 	}
 	_, err = s.GetUser(ctx, "u1")
@@ -135,7 +135,7 @@ func TestSQLiteProviderCRUD(t *testing.T) {
 
 	// Upsert (update)
 	p.DisplayName = "Google Updated"
-	if err := s.UpsertProvider(ctx, p); err != nil {
+	if err = s.UpsertProvider(ctx, p); err != nil {
 		t.Fatalf("UpsertProvider update: %v", err)
 	}
 	got, err = s.GetProvider(ctx, "google-corp")
@@ -156,7 +156,7 @@ func TestSQLiteProviderCRUD(t *testing.T) {
 	}
 
 	// Delete
-	if err := s.DeleteProvider(ctx, "google-corp"); err != nil {
+	if err = s.DeleteProvider(ctx, "google-corp"); err != nil {
 		t.Fatalf("DeleteProvider: %v", err)
 	}
 	_, err = s.GetProvider(ctx, "google-corp")
@@ -189,7 +189,7 @@ func TestSQLiteRefreshTokenCRUD(t *testing.T) {
 		t.Errorf("user_id = %q", got.UserID)
 	}
 
-	if err := s.DeleteRefreshToken(ctx, "hash123"); err != nil {
+	if err = s.DeleteRefreshToken(ctx, "hash123"); err != nil {
 		t.Fatalf("DeleteRefreshToken: %v", err)
 	}
 	_, err = s.GetRefreshToken(ctx, "hash123")
@@ -293,7 +293,7 @@ func TestSQLiteDeviceCodeCRUD(t *testing.T) {
 	// Update (approve)
 	dc.Status = "approved"
 	dc.UserID = "u1"
-	if err := s.UpdateDeviceCode(ctx, dc); err != nil {
+	if err = s.UpdateDeviceCode(ctx, dc); err != nil {
 		t.Fatalf("UpdateDeviceCode: %v", err)
 	}
 	got, err = s.GetDeviceCode(ctx, "dev-hash")
@@ -319,7 +319,7 @@ func TestSQLiteAuditLog(t *testing.T) {
 		})
 	}
 
-	entries, total, err := s.ListAuditEntries(ctx, AuditFilter{
+	entries, total, err := s.ListAuditEntries(ctx, &AuditFilter{
 		UserID: "u1",
 		Limit:  3,
 		Offset: 0,
@@ -395,7 +395,7 @@ func TestSQLiteRelaySessionLifecycle(t *testing.T) {
 	now := time.Now()
 	sess.Status = "completed"
 	sess.CompletedAt = &now
-	if err := s.UpdateRelaySession(ctx, sess); err != nil {
+	if err = s.UpdateRelaySession(ctx, sess); err != nil {
 		t.Fatalf("UpdateRelaySession: %v", err)
 	}
 

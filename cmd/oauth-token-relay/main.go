@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
-	if err := cfg.Validate(); err != nil {
+	if err = cfg.Validate(); err != nil {
 		log.Fatalf("validate config: %v", err)
 	}
 
@@ -54,9 +54,10 @@ func main() {
 	var st store.Store
 	switch cfg.Storage.Driver {
 	case "sqlite":
-		sqliteStore, err := store.NewSQLiteStore(cfg.Storage.SQLite.Path)
+		var sqliteStore *store.SQLiteStore
+		sqliteStore, err = store.NewSQLiteStore(cfg.Storage.SQLite.Path)
 		if err != nil {
-			log.Fatalf("open sqlite: %v", err)
+			log.Fatalf("open sqlite: %v", err) //nolint:gocritic // startup fatal before defers is intentional
 		}
 		defer sqliteStore.Close()
 		st = sqliteStore
@@ -72,7 +73,7 @@ func main() {
 		log.Fatal("PostgreSQL driver not yet implemented")
 	}
 
-	if err := st.Migrate(ctx); err != nil {
+	if err = st.Migrate(ctx); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
 
@@ -295,7 +296,7 @@ func initBackup(ctx context.Context, cfg *config.Config) *store.BackupManager {
 	})
 
 	// Acquire distributed lock (prevents concurrent backups from multiple instances)
-	if err := mgr.AcquireLock(ctx); err != nil {
+	if err = mgr.AcquireLock(ctx); err != nil {
 		log.Fatalf("s3 backup: acquire lock: %v", err)
 	}
 	log.Printf("s3 backup: lock acquired (instance=%s)", instanceID)

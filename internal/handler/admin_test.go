@@ -85,8 +85,8 @@ func (s *adminMockStore) DeleteUserRefreshTokens(_ context.Context, _ string) er
 	return nil
 }
 
-func (s *adminMockStore) ListAuditEntries(_ context.Context, f store.AuditFilter) ([]*store.AuditEntry, int, error) {
-	var filtered []*store.AuditEntry
+func (s *adminMockStore) ListAuditEntries(_ context.Context, f *store.AuditFilter) ([]*store.AuditEntry, int, error) {
+	filtered := make([]*store.AuditEntry, 0, len(s.auditEntries))
 	for _, e := range s.auditEntries {
 		if f.UserID != "" && e.UserID != f.UserID {
 			continue

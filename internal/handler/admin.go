@@ -65,7 +65,7 @@ func (h *AdminHandler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	audit, _, _ := h.store.ListAuditEntries(r.Context(), store.AuditFilter{
+	audit, _, _ := h.store.ListAuditEntries(r.Context(), &store.AuditFilter{
 		UserID: id,
 		Limit:  20,
 	})
@@ -175,7 +175,7 @@ func (h *AdminHandler) HandleAuditLog(w http.ResponseWriter, r *http.Request) {
 		offset = 0
 	}
 
-	filter := store.AuditFilter{
+	filter := &store.AuditFilter{
 		UserID:     q.Get("user_id"),
 		ProviderID: q.Get("provider_id"),
 		Action:     q.Get("action"),

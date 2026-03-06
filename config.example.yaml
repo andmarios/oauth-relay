@@ -1,6 +1,6 @@
 # oauth-token-relay configuration
 server:
-  address: ":8085"
+  address: ":8080"
   # base_url: "https://oauth-relay.example.com"  # Required in production; omit for localhost dev
   secure_cookies: true  # Set to false only for local HTTP development
   read_timeout: 30s

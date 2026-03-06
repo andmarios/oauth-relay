@@ -16,11 +16,14 @@ spec:
     spec:
       containers:
         - name: oauth-token-relay
-          image: oauth-token-relay:latest
+          image: ghcr.io/andmarios/oauth-relay:latest
+          args: ["-config", "/etc/oauth-token-relay/config.yaml"]
           ports:
             - containerPort: 8080
               name: http
           volumeMounts:
+            # Optional: remove data volume when using S3 backup
+            # (the DB is restored from S3 on startup)
             - name: data
               mountPath: /data
             - name: config
@@ -32,6 +35,39 @@ spec:
                 secretKeyRef:
                   name: oauth-token-relay
                   key: jwt-signing-key
+            # Identity provider (SSO login)
+            - name: GOOGLE_IDP_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-token-relay
+                  key: google-idp-client-id
+            - name: GOOGLE_IDP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-token-relay
+                  key: google-idp-client-secret
+            # Relay provider (upstream API tokens)
+            - name: GOOGLE_CORP_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-token-relay
+                  key: google-corp-client-id
+            - name: GOOGLE_CORP_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-token-relay
+                  key: google-corp-client-secret
+            # Optional: S3 backup credentials (omit if using IAM roles)
+            # - name: AWS_ACCESS_KEY_ID
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: oauth-token-relay
+            #       key: aws-access-key-id
+            # - name: AWS_SECRET_ACCESS_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: oauth-token-relay
+            #       key: aws-secret-access-key
           livenessProbe:
             httpGet:
               path: /health
@@ -52,6 +88,8 @@ spec:
               cpu: 500m
               memory: 256Mi
       volumes:
+        # Optional: remove PVC when using S3 backup
+        # (the DB is restored from S3 on startup)
         - name: data
           persistentVolumeClaim:
             claimName: oauth-token-relay-data

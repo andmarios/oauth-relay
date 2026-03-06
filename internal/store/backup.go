@@ -101,7 +101,7 @@ func (m *BackupManager) Restore(ctx context.Context, dbPath string) (bool, error
 	defer rc.Close()
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0750); err != nil {
+	if err = os.MkdirAll(filepath.Dir(dbPath), 0750); err != nil {
 		return false, fmt.Errorf("create db dir: %w", err)
 	}
 
@@ -140,11 +140,10 @@ func (m *BackupManager) StartHeartbeat(ctx context.Context) {
 // On shutdown, it performs a final backup and releases the lock, then signals
 // completion via the done channel (see Wait).
 func (m *BackupManager) Run(ctx context.Context) {
-	defer close(m.done)
-
 	if m.db == nil {
 		log.Fatal("backup: Run called before SetStore")
 	}
+	defer close(m.done)
 
 	ticker := time.NewTicker(m.cfg.Interval)
 	defer ticker.Stop()

@@ -207,7 +207,7 @@ func TestBackupRestore(t *testing.T) {
 		InstanceID: "src-inst",
 	})
 	srcMgr.SetStore(srcStore)
-	if err := srcMgr.backupDB(ctx); err != nil {
+	if err = srcMgr.backupDB(ctx); err != nil {
 		t.Fatalf("backup source: %v", err)
 	}
 	srcStore.Close()
@@ -232,7 +232,7 @@ func TestBackupRestore(t *testing.T) {
 	}
 
 	// Verify the restored file exists and contains data
-	if _, err := os.Stat(dstPath); err != nil {
+	if _, err = os.Stat(dstPath); err != nil {
 		t.Fatalf("restored file missing: %v", err)
 	}
 

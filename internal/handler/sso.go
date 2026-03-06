@@ -102,14 +102,14 @@ func (h *SSOHandler) HandleLoginPage(w http.ResponseWriter, r *http.Request) {
 			btnIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`
 		}
 
-		buttons.WriteString(fmt.Sprintf(
-			`<a href="/sso/start/%s?return_to=%s" class="%s">%s Sign in with %s</a>`,
+		fmt.Fprintf(&buttons,
+			`<a href="/sso/start/%s?return_to=%s" class=%q>%s Sign in with %s</a>`,
 			html.EscapeString(p.ID()),
 			url.QueryEscape(returnTo),
 			btnClass,
 			btnIcon,
 			html.EscapeString(name),
-		))
+		)
 	}
 
 	fmt.Fprintf(w, `<!DOCTYPE html>
@@ -313,35 +313,32 @@ func (h *SSOHandler) HandleSSOCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Determine which session to create based on return_to path
-	if strings.HasPrefix(returnTo, "/admin/") {
+	sd := &auth.SessionData{
+		UserID:     user.ID,
+		Email:      user.Email,
+		Role:       user.Role,
+		ProviderID: user.ProviderID,
+	}
+	switch {
+	case strings.HasPrefix(returnTo, "/admin/"):
 		// Admin login — verify admin role
 		if user.Role != "admin" {
 			redirectWithError(w, r, returnTo, "Access denied. Admin privileges required.")
 			return
 		}
-		if err := h.adminSession.Create(w, &auth.SessionData{
-			UserID:     user.ID,
-			Email:      user.Email,
-			Role:       user.Role,
-			ProviderID: user.ProviderID,
-		}); err != nil {
+		if err := h.adminSession.Create(w, sd); err != nil {
 			log.Printf("sso: create admin session: %v", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-	} else if strings.HasPrefix(returnTo, "/oauth/") {
+	case strings.HasPrefix(returnTo, "/oauth/"):
 		// OAuth login — create OAuth session
-		if err := h.oauthSession.Create(w, &auth.SessionData{
-			UserID:     user.ID,
-			Email:      user.Email,
-			Role:       user.Role,
-			ProviderID: user.ProviderID,
-		}); err != nil {
+		if err := h.oauthSession.Create(w, sd); err != nil {
 			log.Printf("sso: create oauth session: %v", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-	} else {
+	default:
 		http.Error(w, "Invalid return URL", http.StatusBadRequest)
 		return
 	}

@@ -14,8 +14,8 @@ type Registry struct {
 // NewRegistry creates a Registry from provider configuration.
 func NewRegistry(providers map[string]config.ProviderConfig, baseURL string) *Registry {
 	r := &Registry{providers: make(map[string]Provider)}
-	for id, cfg := range providers {
-		r.providers[id] = NewOAuth2Provider(OAuth2Config{
+	for id, cfg := range providers { //nolint:gocritic // map values can't be addressed
+		r.providers[id] = NewOAuth2Provider(&OAuth2Config{
 			ID:           id,
 			DisplayName:  cfg.DisplayName,
 			ClientID:     cfg.ClientID,

@@ -1,3 +1,6 @@
+# Optional: PVC can be removed when S3 backup is enabled.
+# The database is restored from S3 on startup, so persistent local
+# storage is not required (though it speeds up restarts).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

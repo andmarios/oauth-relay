@@ -8,20 +8,20 @@ Centralizes OAuth credential management: the server holds `client_secret`, clien
 
 ```
 CLI                         Relay Server                  Google / GitHub / etc.
- |                               |                               |
+ |                              |                               |
  |-- PKCE auth (SSO login) ---->|                               |
  |<-- server JWT ---------------| (identity verified via SSO)   |
- |                               |                               |
+ |                              |                               |
  |-- start relay (JWT) -------->|                               |
  |<-- auth_url -----------------| (provider consent URL)        |
- |                               |                               |
+ |                              |                               |
  |   [browser: user consents]   |-- exchange code ------------->|
- |                               |<-- access + refresh tokens --|
- |                               |                               |
+ |                              |<-- access + refresh tokens ---|
+ |                              |                               |
  |-- complete (JWT) ----------->|                               |
  |<-- tokens (one-time) --------| (deleted from memory)         |
- |                               |                               |
- |-- API calls directly ------------------------------------------->|
+ |                              |                               |
+ |-- API calls directly --------------------------------------->|
 ```
 
 **Two layers of auth:**
@@ -52,7 +52,7 @@ export GOOGLE_CORP_CLIENT_SECRET=...
 go run ./cmd/oauth-token-relay -config config.yaml
 ```
 
-The server starts on `:8085` by default. Visit `http://localhost:8085/` to access the admin dashboard.
+The server starts on `:8080` by default. Visit `http://localhost:8080/` to access the admin dashboard.
 
 ## Configuration
 
@@ -84,7 +84,7 @@ http://<relay-host>:<port>/auth/tokens/callback
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) -> APIs & Services -> Credentials
 2. Create an **OAuth 2.0 Client ID** (Web Application)
-3. Add redirect URI: `http://localhost:8085/auth/tokens/callback`
+3. Add redirect URI: `http://localhost:8080/auth/tokens/callback`
 4. Copy Client ID and Client Secret to `GOOGLE_CORP_CLIENT_ID` and `GOOGLE_CORP_CLIENT_SECRET` env vars
 5. The `extra_params` with `access_type: "offline"` and `prompt: "consent"` ensure refresh tokens are issued on every consent
 
@@ -94,7 +94,7 @@ http://<relay-host>:<port>/auth/tokens/callback
 2. Create a new OAuth client
 3. Set a unique identifier (this becomes the `client_id`)
 4. **Set Client Kind to "Confidential"** -- "Public" requires PKCE which the relay doesn't send for upstream flows, causing `invalid_request` errors
-5. Add redirect URI: `http://localhost:8085/auth/tokens/callback`
+5. Add redirect URI: `http://localhost:8080/auth/tokens/callback`
 6. Copy the generated Client Secret to the `ZENDESK_CLIENT_SECRET` env var
 
 ### CLI Configuration
@@ -105,7 +105,7 @@ Once the relay is running and providers are configured, point CLIs at it:
 
 ```bash
 gws-cli config set-mode server \
-  --url http://localhost:8085 \
+  --url http://localhost:8080 \
   --provider google-corp \
   -a myaccount
 
@@ -118,7 +118,7 @@ gws-cli drive list -a myaccount --max-results 3
 ```bash
 zd-cli auth set-mode \
   --mode server \
-  --url http://localhost:8085 \
+  --url http://localhost:8080 \
   --provider zendesk \
   --subdomain YOUR_SUBDOMAIN
 

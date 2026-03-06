@@ -147,7 +147,7 @@ func (s *mockRelayStore) GetDeviceCodeByUserCode(_ context.Context, _ string) (*
 }
 func (s *mockRelayStore) UpdateDeviceCode(_ context.Context, _ *store.DeviceCode) error { return nil }
 func (s *mockRelayStore) CleanExpiredDeviceCodes(_ context.Context) (int64, error)      { return 0, nil }
-func (s *mockRelayStore) ListAuditEntries(_ context.Context, _ store.AuditFilter) ([]*store.AuditEntry, int, error) {
+func (s *mockRelayStore) ListAuditEntries(_ context.Context, _ *store.AuditFilter) ([]*store.AuditEntry, int, error) {
 	return nil, 0, nil
 }
 func (s *mockRelayStore) GetUsageStats(_ context.Context, _ time.Time) (map[string]int64, error) {

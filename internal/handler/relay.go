@@ -162,7 +162,7 @@ func (h *RelayHandler) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	// Reject stale sessions (#8) and mark as expired (#2)
 	if time.Since(sess.CreatedAt) > sessionMaxAge {
 		sess.Status = "expired"
-		if err := h.store.UpdateRelaySession(ctx, sess); err != nil {
+		if err = h.store.UpdateRelaySession(ctx, sess); err != nil {
 			log.Printf("relay session update: %v", err)
 		}
 		http.Error(w, "Session expired", http.StatusGone)

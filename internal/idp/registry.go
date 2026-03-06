@@ -14,8 +14,8 @@ type Registry struct {
 // NewRegistry constructs identity providers from config with the given callback URL.
 func NewRegistry(idps map[string]config.IDPConfig, callbackURL string) *Registry {
 	r := &Registry{providers: make(map[string]IdentityProvider)}
-	for id, cfg := range idps {
-		r.providers[id] = NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	for id, cfg := range idps { //nolint:gocritic // map values can't be addressed
+		r.providers[id] = NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 			ID:           id,
 			DisplayName:  cfg.DisplayName,
 			ClientID:     cfg.ClientID,

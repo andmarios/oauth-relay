@@ -192,7 +192,7 @@ func (h *OAuthHandler) handleRefreshToken(w http.ResponseWriter, r *http.Request
 
 	// Delete old refresh token atomically (rotation) — if not found, it was revoked
 	tokenHash := hashToken(refreshTokenStr)
-	if err := h.store.DeleteRefreshToken(ctx, tokenHash); err != nil {
+	if err = h.store.DeleteRefreshToken(ctx, tokenHash); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			http.Error(w, `{"error":"invalid_grant","error_description":"refresh token has been revoked"}`, http.StatusBadRequest)
 			return

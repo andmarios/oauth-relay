@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewOAuth2IdentityProvider(t *testing.T) {
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:           "google",
 		DisplayName:  "Google",
 		ClientID:     "test-client-id",
@@ -32,7 +32,7 @@ func TestNewOAuth2IdentityProvider(t *testing.T) {
 }
 
 func TestAuthURL(t *testing.T) {
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:           "google",
 		ClientID:     "test-client",
 		AuthorizeURL: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -71,7 +71,7 @@ func TestGetUserInfoStandardOIDC(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:          "test",
 		UserInfoURL: srv.URL,
 		EmailField:  "email",
@@ -98,7 +98,7 @@ func TestGetUserInfoCustomEmailField(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:          "test",
 		UserInfoURL: srv.URL,
 		EmailField:  "mail",
@@ -123,7 +123,7 @@ func TestGetUserInfoGitHubEmails(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:          "github",
 		UserInfoURL: srv.URL,
 		EmailField:  "email",
@@ -146,7 +146,7 @@ func TestGetUserInfoGitHubNoVerifiedEmail(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:          "github",
 		UserInfoURL: srv.URL,
 	})
@@ -165,7 +165,7 @@ func TestGetUserInfoMissingEmail(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:          "test",
 		UserInfoURL: srv.URL,
 		EmailField:  "email",
@@ -184,7 +184,7 @@ func TestGetUserInfoHTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := NewOAuth2IdentityProvider(OAuth2IDPConfig{
+	p := NewOAuth2IdentityProvider(&OAuth2IDPConfig{
 		ID:          "test",
 		UserInfoURL: srv.URL,
 	})
@@ -197,8 +197,8 @@ func TestGetUserInfoHTTPError(t *testing.T) {
 
 func TestRegistryGetAndList(t *testing.T) {
 	// Build a registry with pre-built providers using a simpler approach
-	p1 := NewOAuth2IdentityProvider(OAuth2IDPConfig{ID: "google", DisplayName: "Google"})
-	p2 := NewOAuth2IdentityProvider(OAuth2IDPConfig{ID: "github", DisplayName: "GitHub"})
+	p1 := NewOAuth2IdentityProvider(&OAuth2IDPConfig{ID: "google", DisplayName: "Google"})
+	p2 := NewOAuth2IdentityProvider(&OAuth2IDPConfig{ID: "github", DisplayName: "GitHub"})
 
 	r := &Registry{providers: map[string]IdentityProvider{
 		"google": p1,

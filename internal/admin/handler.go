@@ -96,7 +96,7 @@ func (h *UIHandler) handleUserDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	audit, _, err := h.store.ListAuditEntries(ctx, store.AuditFilter{
+	audit, _, err := h.store.ListAuditEntries(ctx, &store.AuditFilter{
 		UserID: id,
 		Limit:  50,
 	})
@@ -116,7 +116,7 @@ func (h *UIHandler) handleAudit(w http.ResponseWriter, r *http.Request) {
 	limit, offset := parsePagination(r)
 	q := r.URL.Query()
 
-	filter := store.AuditFilter{
+	filter := &store.AuditFilter{
 		UserID: q.Get("user_id"),
 		Action: q.Get("action"),
 		Limit:  limit,
@@ -133,7 +133,7 @@ func (h *UIHandler) handleAudit(w http.ResponseWriter, r *http.Request) {
 		Total:   total,
 		Limit:   limit,
 		Offset:  offset,
-		Filter:  filter,
+		Filter:  *filter,
 	}
 	templ.Handler(templates.Audit(data)).ServeHTTP(w, r)
 }
@@ -145,7 +145,7 @@ func (h *UIHandler) handleProviders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var infos []templates.ProviderInfo
+	infos := make([]templates.ProviderInfo, 0, len(dbProviders))
 	for _, p := range dbProviders {
 		infos = append(infos, templates.ProviderInfo{
 			ID:          p.ID,

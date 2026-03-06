@@ -101,7 +101,7 @@ func Load(path string) (*Config, error) {
 
 func (c *Config) applyDefaults() {
 	if c.Server.Address == "" {
-		c.Server.Address = ":8085"
+		c.Server.Address = ":8080"
 	}
 	if c.Server.SecureCookies == nil {
 		t := true
@@ -172,7 +172,7 @@ func (c *Config) Validate() error {
 	if len(c.IdentityProviders) == 0 {
 		return fmt.Errorf("identity_providers: at least one identity provider is required")
 	}
-	for id, idp := range c.IdentityProviders {
+	for id, idp := range c.IdentityProviders { //nolint:gocritic // map values can't be addressed
 		if idp.ClientID == "" {
 			return fmt.Errorf("identity_providers.%s.client_id is required", id)
 		}

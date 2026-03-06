@@ -37,7 +37,7 @@ type OAuth2Config struct {
 }
 
 // NewOAuth2Provider creates a new generic OAuth 2.0 provider.
-func NewOAuth2Provider(cfg OAuth2Config) *OAuth2Provider {
+func NewOAuth2Provider(cfg *OAuth2Config) *OAuth2Provider {
 	return &OAuth2Provider{
 		id:          cfg.ID,
 		displayName: cfg.DisplayName,
@@ -61,9 +61,8 @@ func (p *OAuth2Provider) ClientID() string    { return p.config.ClientID }
 
 // AuthURL builds the authorization URL with the given state and scopes.
 func (p *OAuth2Provider) AuthURL(state string, scopes []string) string {
-	opts := []oauth2.AuthCodeOption{
-		oauth2.SetAuthURLParam("scope", strings.Join(scopes, " ")),
-	}
+	opts := make([]oauth2.AuthCodeOption, 1, 1+len(p.extraParams))
+	opts[0] = oauth2.SetAuthURLParam("scope", strings.Join(scopes, " "))
 	for k, v := range p.extraParams {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}

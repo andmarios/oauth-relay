@@ -8,7 +8,7 @@ import (
 )
 
 func TestOAuth2ProviderAuthURL(t *testing.T) {
-	p := NewOAuth2Provider(OAuth2Config{
+	p := NewOAuth2Provider(&OAuth2Config{
 		ID:           "google-corp",
 		DisplayName:  "Google Corp",
 		ClientID:     "client-id",

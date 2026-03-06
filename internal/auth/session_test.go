@@ -22,7 +22,7 @@ func TestSessionManagerRoundTrip(t *testing.T) {
 
 	// Create session
 	w := httptest.NewRecorder()
-	if err := mgr.Create(w, data); err != nil {
+	if err = mgr.Create(w, data); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestSessionManagerExpired(t *testing.T) {
 	mgr.ttl = 0
 
 	w := httptest.NewRecorder()
-	if err := mgr.Create(w, &SessionData{UserID: "u1"}); err != nil {
+	if err = mgr.Create(w, &SessionData{UserID: "u1"}); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 

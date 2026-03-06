@@ -145,7 +145,7 @@ type Store interface {
 
 	// Audit log
 	CreateAuditEntry(ctx context.Context, e *AuditEntry) error
-	ListAuditEntries(ctx context.Context, f AuditFilter) ([]*AuditEntry, int, error)
+	ListAuditEntries(ctx context.Context, f *AuditFilter) ([]*AuditEntry, int, error)
 
 	// Usage events
 	CreateUsageEvent(ctx context.Context, e *UsageEvent) error

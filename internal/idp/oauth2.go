@@ -37,7 +37,7 @@ type OAuth2IDPConfig struct {
 }
 
 // NewOAuth2IdentityProvider creates an OAuth2IdentityProvider from the given config.
-func NewOAuth2IdentityProvider(cfg OAuth2IDPConfig) *OAuth2IdentityProvider {
+func NewOAuth2IdentityProvider(cfg *OAuth2IDPConfig) *OAuth2IdentityProvider {
 	return &OAuth2IdentityProvider{
 		id:          cfg.ID,
 		displayName: cfg.DisplayName,
