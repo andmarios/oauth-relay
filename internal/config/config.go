@@ -123,7 +123,7 @@ func (c *Config) applyDefaults() {
 		c.JWT.RefreshTokenTTL = 720 * time.Hour
 	}
 	if c.Backup.Interval == 0 {
-		c.Backup.Interval = 1 * time.Hour
+		c.Backup.Interval = 30 * time.Minute
 	}
 	if c.Backup.Prefix == "" {
 		c.Backup.Prefix = "oauth-token-relay/"
@@ -159,6 +159,14 @@ func (c *Config) Validate() error {
 		}
 		if p.TokenURL == "" {
 			return fmt.Errorf("providers.%s.token_url is required", id)
+		}
+	}
+	if c.Backup.Enabled {
+		if c.Backup.Bucket == "" {
+			return fmt.Errorf("backup.bucket is required when backup is enabled")
+		}
+		if c.Backup.Region == "" {
+			return fmt.Errorf("backup.region is required when backup is enabled")
 		}
 	}
 	if len(c.IdentityProviders) == 0 {

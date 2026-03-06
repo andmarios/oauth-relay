@@ -29,7 +29,8 @@ internal/
 ├── store/
 │   ├── store.go                 — Storage interface (Users, Tokens, Audit, etc.)
 │   ├── sqlite.go                — SQLite implementation
-│   └── backup.go                — S3 backup (SQLite only, not yet wired)
+│   ├── backup.go                — S3 backup (SQLite only)
+│   └── s3.go                    — AWS S3 client implementation
 ├── handler/
 │   ├── health.go                — GET /health
 │   ├── oauth.go                 — /oauth/* (PKCE, device flow, token exchange)
@@ -90,7 +91,7 @@ docker compose up
 | `github.com/golang-jwt/jwt/v5` | JWT issuance and validation |
 | `github.com/mattn/go-sqlite3` | SQLite driver |
 | `github.com/a-h/templ` | Type-safe Go HTML templates |
-| `github.com/aws/aws-sdk-go-v2` | S3 backup (not yet wired) |
+| `github.com/aws/aws-sdk-go-v2` | S3 backup |
 | `gopkg.in/yaml.v3` | Config parsing |
 
 ## API Contract

@@ -16,8 +16,10 @@ backup:
   enabled: false
   bucket: ""
   prefix: "oauth-token-relay/"
-  interval: 1h
+  interval: 30m
   region: "us-east-1"
+  # AWS credentials via default chain: AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars,
+  # ~/.aws/credentials, or IAM role (EC2/ECS/EKS).
 
 jwt:
   signing_key: "${JWT_SIGNING_KEY}"  # REQUIRED: 256-bit key, base64 encoded

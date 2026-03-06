@@ -66,7 +66,7 @@ See [`config.example.yaml`](config.example.yaml) for all options. Key sections:
 | `providers` | Upstream OAuth providers for token relay (Google, Zendesk, etc.) |
 | `identity_providers` | SSO providers for user login (Google, GitHub, etc.) |
 | `admin.bootstrap_admins` | Email addresses auto-promoted to admin on first SSO login |
-| `backup` | S3 backup for SQLite (not yet wired) |
+| `backup` | Optional S3 backup for SQLite |
 
 Environment variables in config values (e.g. `${JWT_SIGNING_KEY}`) are expanded at load time.
 
@@ -182,6 +182,25 @@ internal/
   httputil/                JSON request/response helpers
 k8s/                       Kubernetes deployment manifests
 ```
+
+## S3 Backup
+
+When `backup.enabled` is true, the server backs up the SQLite database to S3 periodically. This allows a fresh container (or a new instance after data loss) to recover state automatically.
+
+**Startup sequence:**
+
+1. Acquire distributed lock in S3 (prevents concurrent backups)
+2. If a backup exists in S3, **restore it to the local path** (overwrites any local DB)
+3. Open the SQLite database and run migrations
+4. Start heartbeat (1 min) and periodic backup (default 30 min)
+
+**Important:** The S3 backup always takes priority over the local copy on startup. If you need to discard the S3 backup and start fresh, delete the backup object from S3 before starting the server.
+
+**Periodic backups** only upload when the database file has been modified since the last backup. On graceful shutdown (SIGTERM/SIGINT), a final backup is performed and the lock is released.
+
+**Distributed lock:** An S3-based lock (`{prefix}lock.json`) prevents multiple instances from backing up simultaneously. The lock has a 1-minute heartbeat and a 5-minute stale timeout. If an instance crashes without releasing its lock, other instances will take over after 5 minutes.
+
+**AWS credentials** are resolved via the default chain: `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` environment variables, `~/.aws/credentials`, or IAM roles (EC2/ECS/EKS).
 
 ## Security
 

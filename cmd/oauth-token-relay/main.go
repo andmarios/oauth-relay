@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -39,6 +40,16 @@ func main() {
 		log.Fatalf("validate config: %v", err)
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	// If S3 backup is enabled, set up the backup manager and restore from S3 BEFORE opening the DB.
+	// This ensures a fresh container can recover state from S3.
+	var backupMgr *store.BackupManager
+	if cfg.Backup.Enabled && cfg.Storage.Driver == "sqlite" {
+		backupMgr = initBackup(ctx, cfg)
+	}
+
 	// Initialize store
 	var st store.Store
 	switch cfg.Storage.Driver {
@@ -50,16 +61,16 @@ func main() {
 		defer sqliteStore.Close()
 		st = sqliteStore
 
-		// Start S3 backup if enabled
-		if cfg.Backup.Enabled {
-			startBackup(sqliteStore, cfg.Backup)
+		// Wire backup manager to the now-open store and start periodic backups
+		if backupMgr != nil {
+			backupMgr.SetStore(sqliteStore)
+			go backupMgr.StartHeartbeat(ctx)
+			go backupMgr.Run(ctx)
+			log.Printf("s3 backup: periodic backup started (interval=%s)", cfg.Backup.Interval)
 		}
 	case "postgres":
 		log.Fatal("PostgreSQL driver not yet implemented")
 	}
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	if err := st.Migrate(ctx); err != nil {
 		log.Fatalf("migrate: %v", err)
@@ -219,6 +230,11 @@ func main() {
 	if err := srv.Start(ctx); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+
+	// Wait for backup manager to finish final backup + lock release before exiting
+	if backupMgr != nil {
+		backupMgr.Wait()
+	}
 }
 
 func bootstrapAdmins(ctx context.Context, st store.Store, emails []string) {
@@ -259,9 +275,38 @@ func syncProviders(ctx context.Context, st store.Store, providers map[string]con
 	}
 }
 
-func startBackup(sqliteStore *store.SQLiteStore, cfg config.BackupConfig) {
-	// S3 backup requires an S3Client implementation (e.g., github.com/aws/aws-sdk-go-v2).
-	// BackupManager is fully implemented in internal/store/backup.go but needs an S3Client to wire.
-	log.Printf("S3 backup configured but S3 client not yet wired: bucket=%s prefix=%s interval=%s", cfg.Bucket, cfg.Prefix, cfg.Interval)
-	_ = sqliteStore
+// initBackup creates the S3 client and backup manager, acquires the distributed lock,
+// and restores the database from S3 if a backup exists. This runs BEFORE the database
+// is opened so that a fresh container can recover state from S3.
+func initBackup(ctx context.Context, cfg *config.Config) *store.BackupManager {
+	s3Client, err := store.NewAWSS3Client(ctx, cfg.Backup.Region)
+	if err != nil {
+		log.Fatalf("s3 backup: create client: %v", err)
+	}
+
+	hostname, _ := os.Hostname()
+	instanceID := fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), time.Now().Unix())
+
+	mgr := store.NewBackupManager(s3Client, store.BackupConfig{
+		Bucket:     cfg.Backup.Bucket,
+		Prefix:     cfg.Backup.Prefix,
+		Interval:   cfg.Backup.Interval,
+		InstanceID: instanceID,
+	})
+
+	// Acquire distributed lock (prevents concurrent backups from multiple instances)
+	if err := mgr.AcquireLock(ctx); err != nil {
+		log.Fatalf("s3 backup: acquire lock: %v", err)
+	}
+	log.Printf("s3 backup: lock acquired (instance=%s)", instanceID)
+
+	// Restore database from S3 if a backup exists and no local DB is present
+	restored, err := mgr.Restore(ctx, cfg.Storage.SQLite.Path)
+	if err != nil {
+		log.Printf("s3 backup: restore failed (continuing with local DB): %v", err)
+	} else if restored {
+		log.Printf("s3 backup: database restored from S3")
+	}
+
+	return mgr
 }
