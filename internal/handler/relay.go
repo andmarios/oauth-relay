@@ -361,6 +361,15 @@ func (h *RelayHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	result, err := prov.Refresh(ctx, req.RefreshToken)
 	if err != nil {
+		log.Printf("relay: refresh failed for user=%s provider=%s: %v", claims.Subject, providerID, err)
+		if auditErr := h.store.CreateAuditEntry(ctx, &store.AuditEntry{
+			UserID:     claims.Subject,
+			ProviderID: providerID,
+			Action:     "token_refresh_failed",
+			IPAddress:  r.RemoteAddr,
+		}); auditErr != nil {
+			log.Printf("audit: %v", auditErr)
+		}
 		httputil.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": "refresh failed"})
 		return
 	}
@@ -371,6 +380,14 @@ func (h *RelayHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 		Action:     "token_refresh",
 	}); err != nil {
 		log.Printf("usage: %v", err)
+	}
+	if err := h.store.CreateAuditEntry(ctx, &store.AuditEntry{
+		UserID:     claims.Subject,
+		ProviderID: providerID,
+		Action:     "token_refreshed",
+		IPAddress:  r.RemoteAddr,
+	}); err != nil {
+		log.Printf("audit: %v", err)
 	}
 
 	resp := map[string]any{

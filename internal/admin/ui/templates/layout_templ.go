@@ -42,7 +42,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " — OAuth Token Relay</title><link rel=\"stylesheet\" href=\"/admin/static/styles.css\"><script src=\"/admin/static/htmx.min.js\"></script></head><body><nav class=\"nav\"><a href=\"/admin/\" class=\"nav-brand\">OAuth Token Relay</a><div class=\"nav-links\"><a href=\"/admin/\">Dashboard</a> <a href=\"/admin/users\">Users</a> <a href=\"/admin/audit\">Audit Log</a> <a href=\"/admin/providers\">Providers</a></div></nav><main class=\"container\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " — OAuth Token Relay</title><link rel=\"icon\" type=\"image/png\" href=\"/admin/static/favicon.png\"><link rel=\"stylesheet\" href=\"/admin/static/styles.css\"><script src=\"/admin/static/htmx.min.js\"></script></head><body><nav class=\"nav\"><a href=\"/admin/\" class=\"nav-brand\">OAuth Token Relay</a><div class=\"nav-links\"><a href=\"/admin/\">Dashboard</a> <a href=\"/admin/users\">Users</a> <a href=\"/admin/audit\">Audit Log</a> <a href=\"/admin/providers\">Providers</a></div></nav><main class=\"container\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
